@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { CoachesModule } from './coaches/coaches.module';
 import { PlayersModule } from './players/players.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     CoachesModule,
     PlayersModule,
     SubscriptionsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
