@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:3000/subscriptions';
+import api from './api';
 
 interface Subscription {
   id: string;
@@ -19,27 +17,27 @@ export const subscriptionsService = {
     if (search) params.append('search', search);
     if (status) params.append('status', status);
     
-    const url = params.toString() ? `${API_URL}?${params.toString()}` : API_URL;
-    const response = await axios.get(url);
+    const url = params.toString() ? `/subscriptions?${params.toString()}` : '/subscriptions';
+    const response = await api.get(url);
     return response.data;
   },
 
   async getById(id: string): Promise<Subscription> {
-    const response = await axios.get(`${API_URL}/${id}`);
+    const response = await api.get(`/subscriptions/${id}`);
     return response.data;
   },
 
   async create(data: Omit<Subscription, 'id'>): Promise<Subscription> {
-    const response = await axios.post(API_URL, data);
+    const response = await api.post('/subscriptions', data);
     return response.data;
   },
 
   async update(id: string, data: Partial<Subscription>): Promise<Subscription> {
-    const response = await axios.patch(`${API_URL}/${id}`, data);
+    const response = await api.patch(`/subscriptions/${id}`, data);
     return response.data;
   },
 
   async delete(id: string): Promise<void> {
-    await axios.delete(`${API_URL}/${id}`);
+    await api.delete(`/subscriptions/${id}`);
   },
 };
