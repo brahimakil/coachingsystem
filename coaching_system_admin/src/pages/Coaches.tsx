@@ -575,47 +575,87 @@ const Coaches = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>CV (PDF) {!editingCoach && '*'}</label>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setFiles({ ...files, cv: e.target.files?.[0] || null })}
-                    required={!editingCoach}
-                  />
-                  {editingCoach && editingCoach.cvUrl && (
-                    <a href={editingCoach.cvUrl} target="_blank" rel="noopener noreferrer" className="current-file-link">
-                      View Current CV
-                    </a>
-                  )}
+                  <div className="file-input-wrapper">
+                    <label className="file-input-label">
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setFiles({ ...files, cv: e.target.files?.[0] || null })}
+                        required={!editingCoach}
+                      />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#667eea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                      </svg>
+                      <span className="file-label-text">
+                        {files.cv ? files.cv.name : 'Click to upload CV (PDF)'}
+                      </span>
+                      <span className="file-label-hint">PDF files only</span>
+                    </label>
+                    {editingCoach && editingCoach.cvUrl && (
+                      <a href={editingCoach.cvUrl} target="_blank" rel="noopener noreferrer" className="current-file-link">
+                        📄 View Current CV
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Profile Picture {!editingCoach && '*'}</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setFiles({ ...files, profilePicture: e.target.files?.[0] || null })}
-                    required={!editingCoach}
-                  />
-                  {editingCoach && editingCoach.profilePictureUrl && (
-                    <a href={editingCoach.profilePictureUrl} target="_blank" rel="noopener noreferrer" className="current-file-link">
-                      View Current
-                    </a>
-                  )}
+                  <div className="file-input-wrapper">
+                    <label className="file-input-label">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setFiles({ ...files, profilePicture: e.target.files?.[0] || null })}
+                        required={!editingCoach}
+                      />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#667eea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                      </svg>
+                      <span className="file-label-text">
+                        {files.profilePicture ? files.profilePicture.name : 'Click to upload Profile Picture'}
+                      </span>
+                      <span className="file-label-hint">JPG, PNG, GIF accepted</span>
+                    </label>
+                    {editingCoach && editingCoach.profilePictureUrl && (
+                      <a href={editingCoach.profilePictureUrl} target="_blank" rel="noopener noreferrer" className="current-file-link">
+                        🖼️ View Current Picture
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="form-group">
                 <label>Passport Picture {!editingCoach && '*'}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFiles({ ...files, passportPicture: e.target.files?.[0] || null })}
-                  required={!editingCoach}
-                />
-                {editingCoach && editingCoach.passportPictureUrl && (
-                  <a href={editingCoach.passportPictureUrl} target="_blank" rel="noopener noreferrer" className="current-file-link">
-                    View Current
-                  </a>
-                )}
+                <div className="file-input-wrapper">
+                  <label className="file-input-label">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setFiles({ ...files, passportPicture: e.target.files?.[0] || null })}
+                      required={!editingCoach}
+                    />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#667eea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span className="file-label-text">
+                      {files.passportPicture ? files.passportPicture.name : 'Click to upload Passport Picture'}
+                    </span>
+                    <span className="file-label-hint">JPG, PNG, GIF accepted</span>
+                  </label>
+                  {editingCoach && editingCoach.passportPictureUrl && (
+                    <a href={editingCoach.passportPictureUrl} target="_blank" rel="noopener noreferrer" className="current-file-link">
+                      📷 View Current Picture
+                    </a>
+                  )}
+                </div>
               </div>
 
               <div className="form-group">

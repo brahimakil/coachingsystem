@@ -29,8 +29,8 @@ export class PlayersController {
   @Get()
   findAll(@Query('search') search?: string, @Query('status') status?: string) {
     console.log('=== GET PLAYERS REQUEST ===');
-    console.log('Search:', search);
-    console.log('Status filter:', status);
+    console.log('Search:', search || 'none');
+    console.log('Status filter:', status || 'all');
     return this.playersService.findAll(search, status);
   }
 

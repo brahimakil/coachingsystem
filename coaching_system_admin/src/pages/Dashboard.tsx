@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Coaches from './Coaches';
 import Players from './Players';
 import Subscriptions from './Subscriptions';
+import Tasks from './Tasks';
 import { dashboardService, type DashboardStats } from '../services/dashboard.service';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
@@ -241,6 +242,8 @@ const Dashboard = () => {
             <Players />
           ) : activeMenu === 'subscriptions' ? (
             <Subscriptions />
+          ) : activeMenu === 'tasks' ? (
+            <Tasks />
           ) : (
             <>
               <div className="page-header">

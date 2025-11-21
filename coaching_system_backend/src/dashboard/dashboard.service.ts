@@ -58,70 +58,69 @@ export class DashboardService {
   }
 
   private getMonthlyData(players: any[], coaches: any[], subscriptions: any[]) {
-    const months: Array<{ month: string; players: number; coaches: number; subscriptions: number }> = [];
     const now = new Date();
-
-    // Generate last 6 months
+    const monthsMap = new Map<string, { month: string; players: number; coaches: number; subscriptions: number }>();
+    
+    // Initialize last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthName = date.toLocaleString('default', { month: 'short' });
       const year = date.getFullYear();
-      const monthKey = `${monthName} ${year}`;
-
-      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
-
-      // Helper function to safely convert createdAt to Date
-      const getCreatedAtDate = (doc: any): Date | null => {
-        try {
-          const data = doc.data();
-          if (!data.createdAt) return null;
-          
-          // If it's a Firestore Timestamp
-          if (typeof data.createdAt.toDate === 'function') {
-            return data.createdAt.toDate();
-          }
-          
-          // If it's already a Date object
-          if (data.createdAt instanceof Date) {
-            return data.createdAt;
-          }
-          
-          // If it's a string, try to parse it
-          if (typeof data.createdAt === 'string') {
-            return new Date(data.createdAt);
-          }
-          
-          return null;
-        } catch (error) {
-          return null;
-        }
-      };
-
-      // Count new registrations/subscriptions in this month
-      const playersCount = players.filter(doc => {
-        const createdAt = getCreatedAtDate(doc);
-        return createdAt && createdAt >= startOfMonth && createdAt <= endOfMonth;
-      }).length;
-
-      const coachesCount = coaches.filter(doc => {
-        const createdAt = getCreatedAtDate(doc);
-        return createdAt && createdAt >= startOfMonth && createdAt <= endOfMonth;
-      }).length;
-
-      const subscriptionsCount = subscriptions.filter(doc => {
-        const createdAt = getCreatedAtDate(doc);
-        return createdAt && createdAt >= startOfMonth && createdAt <= endOfMonth;
-      }).length;
-
-      months.push({
-        month: monthKey,
-        players: playersCount,
-        coaches: coachesCount,
-        subscriptions: subscriptionsCount,
-      });
+      const key = `${monthName} ${year}`;
+      monthsMap.set(key, { month: key, players: 0, coaches: 0, subscriptions: 0 });
     }
 
-    return months;
+    // Helper to get month key
+    const getMonthKey = (date: Date) => {
+      const monthName = date.toLocaleString('default', { month: 'short' });
+      const year = date.getFullYear();
+      return `${monthName} ${year}`;
+    };
+
+    // Helper to process collection
+    const processCollection = (docs: any[], type: 'players' | 'coaches' | 'subscriptions') => {
+      docs.forEach(doc => {
+        const createdAt = this.getCreatedAtDate(doc);
+        if (createdAt) {
+          const key = getMonthKey(createdAt);
+          if (monthsMap.has(key)) {
+            const stats = monthsMap.get(key)!;
+            stats[type]++;
+          }
+        }
+      });
+    };
+
+    processCollection(players, 'players');
+    processCollection(coaches, 'coaches');
+    processCollection(subscriptions, 'subscriptions');
+
+    return Array.from(monthsMap.values());
+  }
+
+  private getCreatedAtDate(doc: any): Date | null {
+    try {
+      const data = doc.data();
+      if (!data.createdAt) return null;
+      
+      // If it's a Firestore Timestamp
+      if (typeof data.createdAt.toDate === 'function') {
+        return data.createdAt.toDate();
+      }
+      
+      // If it's already a Date object
+      if (data.createdAt instanceof Date) {
+        return data.createdAt;
+      }
+      
+      // If it's a string, try to parse it
+      if (typeof data.createdAt === 'string') {
+        return new Date(data.createdAt);
+      }
+      
+      return null;
+    } catch (error) {
+      return null;
+    }
   }
 }

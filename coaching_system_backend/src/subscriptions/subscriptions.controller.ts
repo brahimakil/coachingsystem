@@ -22,8 +22,13 @@ export class SubscriptionsController {
   }
 
   @Get()
-  findAll(@Query('search') search?: string, @Query('status') status?: string) {
-    return this.subscriptionsService.findAll(search, status);
+  findAll(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('coachId') coachId?: string,
+    @Query('playerId') playerId?: string,
+  ) {
+    return this.subscriptionsService.findAll(search, status, coachId, playerId);
   }
 
   @Get(':id')

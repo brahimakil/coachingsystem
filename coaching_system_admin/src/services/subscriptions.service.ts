@@ -12,10 +12,12 @@ interface Subscription {
 }
 
 export const subscriptionsService = {
-  async getAll(search?: string, status?: string): Promise<Subscription[]> {
+  async getAll(search?: string, status?: string, coachId?: string, playerId?: string): Promise<Subscription[]> {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
     if (status) params.append('status', status);
+    if (coachId) params.append('coachId', coachId);
+    if (playerId) params.append('playerId', playerId);
     
     const url = params.toString() ? `/subscriptions?${params.toString()}` : '/subscriptions';
     const response = await api.get(url);

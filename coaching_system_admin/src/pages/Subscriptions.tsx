@@ -275,8 +275,8 @@ const Subscriptions = () => {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingSubscription(null); resetForm(); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingSubscription ? 'Edit Subscription' : 'Add New Subscription'}</h2>
               <button
@@ -380,8 +380,8 @@ const Subscriptions = () => {
 
       {/* View Modal */}
       {viewingSubscription && (
-        <div className="modal-overlay">
-          <div className="modal view-modal">
+        <div className="modal-overlay" onClick={() => setViewingSubscription(null)}>
+          <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Subscription Details</h2>
               <button className="btn-close" onClick={() => setViewingSubscription(null)}>
