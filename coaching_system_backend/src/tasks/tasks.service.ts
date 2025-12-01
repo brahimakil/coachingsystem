@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Firestore } from 'firebase-admin/firestore';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -11,6 +11,70 @@ export class TasksService {
 
   async create(createTaskDto: CreateTaskDto) {
     console.log('Creating task with data:', createTaskDto);
+
+    // Validate that the subscription exists and get its details
+    const subscriptionDoc = await this.firestore
+      .collection('subscriptions')
+      .doc(createTaskDto.subscriptionId)
+      .get();
+
+    if (!subscriptionDoc.exists) {
+      throw new BadRequestException('Subscription not found');
+    }
+
+    const subscriptionData = subscriptionDoc.data();
+    if (!subscriptionData) {
+      throw new BadRequestException('Subscription has no data');
+    }
+
+    // Validate that the subscription is active
+    if (subscriptionData.status !== 'active') {
+      throw new BadRequestException(
+        `Cannot create task for a ${subscriptionData.status} subscription. The subscription must be active.`
+      );
+    }
+
+    // Get subscription date range
+    const subscriptionStart = new Date(subscriptionData.startDate);
+    const subscriptionEnd = new Date(subscriptionData.endDate);
+    
+    // Parse task dates
+    const taskStartDate = new Date(createTaskDto.startDate);
+    const taskDueDate = new Date(createTaskDto.dueDate);
+
+    // Validate task start date is within subscription period
+    if (taskStartDate < subscriptionStart) {
+      throw new BadRequestException(
+        `Task start date (${createTaskDto.startDate}) must be on or after the subscription start date (${subscriptionData.startDate})`
+      );
+    }
+
+    if (taskStartDate > subscriptionEnd) {
+      throw new BadRequestException(
+        `Task start date (${createTaskDto.startDate}) must be on or before the subscription end date (${subscriptionData.endDate})`
+      );
+    }
+
+    // Validate task due date is within subscription period
+    if (taskDueDate > subscriptionEnd) {
+      throw new BadRequestException(
+        `Task due date (${createTaskDto.dueDate}) must be on or before the subscription end date (${subscriptionData.endDate})`
+      );
+    }
+
+    // Validate task start date is before due date
+    if (taskStartDate >= taskDueDate) {
+      throw new BadRequestException('Task start date must be before the due date');
+    }
+
+    // Verify player and coach IDs match the subscription
+    if (createTaskDto.playerId !== subscriptionData.playerId) {
+      throw new BadRequestException('Player ID does not match the subscription');
+    }
+
+    if (createTaskDto.coachId !== subscriptionData.coachId) {
+      throw new BadRequestException('Coach ID does not match the subscription');
+    }
 
     const taskData: any = {
       ...createTaskDto,

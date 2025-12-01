@@ -5,6 +5,7 @@ import Coaches from './Coaches';
 import Players from './Players';
 import Subscriptions from './Subscriptions';
 import Tasks from './Tasks';
+import Calendar from './Calendar';
 import { dashboardService, type DashboardStats } from '../services/dashboard.service';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
@@ -15,7 +16,8 @@ import {
   MdTask,
   MdLogout,
   MdMenu,
-  MdClose
+  MdClose,
+  MdCalendarToday
 } from 'react-icons/md';
 import '../styles/dashboard.css';
 
@@ -64,6 +66,7 @@ const Dashboard = () => {
     { id: 'players', label: 'Players', icon: MdSportsSoccer },
     { id: 'subscriptions', label: 'Subscriptions', icon: MdPayment },
     { id: 'tasks', label: 'Tasks', icon: MdTask },
+    { id: 'calendar', label: 'Calendar', icon: MdCalendarToday },
   ];
 
   return (
@@ -244,6 +247,8 @@ const Dashboard = () => {
             <Subscriptions />
           ) : activeMenu === 'tasks' ? (
             <Tasks />
+          ) : activeMenu === 'calendar' ? (
+            <Calendar />
           ) : (
             <>
               <div className="page-header">

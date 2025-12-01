@@ -6,6 +6,7 @@ import { FirebaseModule } from '../firebase/firebase.module';
 @Module({
   imports: [FirebaseModule],
   controllers: [SubscriptionsController],
-  providers: [SubscriptionsService]
+  providers: [SubscriptionsService],
+  exports: [SubscriptionsService],
 })
 export class SubscriptionsModule {}

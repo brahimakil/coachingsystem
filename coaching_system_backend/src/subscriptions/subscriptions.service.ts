@@ -1,36 +1,73 @@
-import { Injectable, Inject, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { Firestore } from 'firebase-admin/firestore';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
-import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
-export class SubscriptionsService implements OnModuleInit {
+export class SubscriptionsService {
   constructor(@Inject('FIRESTORE') private firestore: Firestore) {}
-
-  // Run expiration check when the module initializes (on app startup)
-  async onModuleInit() {
-    console.log('Running initial subscription expiration check on startup...');
-    await this.expireSubscriptions();
-  }
   
   private subscriptionsCollection = 'subscriptions';
 
   async create(createSubscriptionDto: CreateSubscriptionDto) {
     console.log('Creating subscription with data:', createSubscriptionDto);
 
+    // Validate dates
+    const startDate = new Date(createSubscriptionDto.startDate);
+    const endDate = new Date(createSubscriptionDto.endDate);
+    const now = new Date();
+
+    // Ensure start date is before end date
+    if (startDate >= endDate) {
+      throw new BadRequestException('Start date must be before end date');
+    }
+
+    // Check if end date has already passed and status is 'active'
+    if (createSubscriptionDto.status === 'active' && endDate < now) {
+      throw new BadRequestException(
+        'Cannot create an active subscription with an end date in the past. Please use "stopped" status or update the end date.'
+      );
+    }
+
     // Check for existing active subscription with same coach and player
-    const existingSubscription = await this.firestore
+    const existingActiveSubscription = await this.firestore
       .collection(this.subscriptionsCollection)
       .where('playerId', '==', createSubscriptionDto.playerId)
       .where('coachId', '==', createSubscriptionDto.coachId)
       .where('status', '==', 'active')
       .get();
 
-    if (!existingSubscription.empty) {
+    if (!existingActiveSubscription.empty) {
       throw new BadRequestException(
         'This player already has an active subscription with this coach. Please stop or complete the existing subscription first.'
       );
+    }
+
+    // Check for overlapping subscriptions (any status) with same coach and player
+    const allSubscriptions = await this.firestore
+      .collection(this.subscriptionsCollection)
+      .where('playerId', '==', createSubscriptionDto.playerId)
+      .where('coachId', '==', createSubscriptionDto.coachId)
+      .get();
+
+    if (!allSubscriptions.empty) {
+      for (const doc of allSubscriptions.docs) {
+        const existingData = doc.data();
+        const existingStart = new Date(existingData.startDate);
+        const existingEnd = new Date(existingData.endDate);
+
+        // Check if dates overlap
+        const hasOverlap = 
+          (startDate >= existingStart && startDate <= existingEnd) || // New start is within existing
+          (endDate >= existingStart && endDate <= existingEnd) ||     // New end is within existing
+          (startDate <= existingStart && endDate >= existingEnd);     // New completely contains existing
+
+        if (hasOverlap) {
+          throw new BadRequestException(
+            `This player already has a subscription with this coach during this period (${existingData.startDate} to ${existingData.endDate}). Please choose different dates.`
+          );
+        }
+      }
     }
 
     const subscriptionData = {
@@ -51,13 +88,15 @@ export class SubscriptionsService implements OnModuleInit {
     };
   }
 
-  // Cron job to check and expire subscriptions every day at midnight
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // Method to check and expire subscriptions
+  // Called automatically when viewing subscriptions page or dashboard
   async expireSubscriptions() {
-    console.log('Running cron job to expire subscriptions...');
+    const startTime = new Date();
+    console.log(`[EXPIRATION CHECK] Starting subscription expiration check at ${startTime.toISOString()}`);
     
     try {
       const now = new Date();
+      now.setHours(23, 59, 59, 999); // Set to end of today for comparison
       
       // Find all active subscriptions
       const activeSubscriptions = await this.firestore
@@ -66,31 +105,55 @@ export class SubscriptionsService implements OnModuleInit {
         .get();
 
       if (activeSubscriptions.empty) {
-        console.log('No active subscriptions to check');
-        return;
+        console.log('[EXPIRATION CHECK] No active subscriptions to check');
+        return { expiredCount: 0, totalChecked: 0 };
       }
 
       let expiredCount = 0;
+      const totalChecked = activeSubscriptions.docs.length;
+      const expiredSubscriptions: Array<{ id: string; playerId: string; coachId: string; endDate: string }> = [];
 
       // Check each subscription's end date
       for (const doc of activeSubscriptions.docs) {
         const data = doc.data();
         const endDate = new Date(data.endDate);
+        endDate.setHours(23, 59, 59, 999); // Set to end of day
 
-        // If end date has passed, mark as stopped
+        // If end date has passed (end date is before end of today), mark as stopped
+        // This means subscription expires AFTER the end date, not ON the end date
         if (endDate < now) {
           await doc.ref.update({
             status: 'stopped',
             updatedAt: new Date().toISOString(),
+            expiredAt: new Date().toISOString(),
+            expiredBy: 'system-auto',
           });
+          
           expiredCount++;
-          console.log(`Expired subscription ${doc.id}`);
+          expiredSubscriptions.push({
+            id: doc.id,
+            playerId: data.playerId || 'unknown',
+            coachId: data.coachId || 'unknown',
+            endDate: data.endDate,
+          });
+          
+          console.log(`[EXPIRATION CHECK] Expired subscription ${doc.id} (Player: ${data.playerId}, Coach: ${data.coachId}, End Date: ${data.endDate})`);
         }
       }
 
-      console.log(`Cron job completed. Expired ${expiredCount} subscriptions.`);
+      const endTime = new Date();
+      const duration = endTime.getTime() - startTime.getTime();
+      
+      console.log(`[EXPIRATION CHECK] Completed in ${duration}ms. Checked: ${totalChecked}, Expired: ${expiredCount}`);
+      
+      if (expiredCount > 0) {
+        console.log('[EXPIRATION CHECK] Expired subscriptions details:', JSON.stringify(expiredSubscriptions, null, 2));
+      }
+
+      return { expiredCount, totalChecked, duration };
     } catch (error) {
-      console.error('Error in expireSubscriptions cron job:', error);
+      console.error('[EXPIRATION CHECK ERROR] Error in expireSubscriptions:', error);
+      throw error;
     }
   }
 
@@ -271,19 +334,64 @@ export class SubscriptionsService implements OnModuleInit {
     }
 
     const currentData = doc.data();
+    
+    // Validate dates if they're being updated
+    if (updateSubscriptionDto.startDate && updateSubscriptionDto.endDate) {
+      const startDate = new Date(updateSubscriptionDto.startDate);
+      const endDate = new Date(updateSubscriptionDto.endDate);
+      
+      if (startDate >= endDate) {
+        throw new BadRequestException('Start date must be before end date');
+      }
+    } else if (updateSubscriptionDto.endDate) {
+      const startDate = new Date(currentData?.startDate);
+      const endDate = new Date(updateSubscriptionDto.endDate);
+      
+      if (startDate >= endDate) {
+        throw new BadRequestException('End date must be after the current start date');
+      }
+    } else if (updateSubscriptionDto.startDate) {
+      const startDate = new Date(updateSubscriptionDto.startDate);
+      const endDate = new Date(currentData?.endDate);
+      
+      if (startDate >= endDate) {
+        throw new BadRequestException('Start date must be before the current end date');
+      }
+    }
+
+    // Filter out undefined values to avoid Firestore error
     const subscriptionData: any = {
-      ...updateSubscriptionDto,
       updatedAt: new Date().toISOString(),
     };
 
-    // If trying to set status to 'active', check if end date has passed
-    if (subscriptionData.status === 'active' || currentData?.status === 'active') {
+    // Only add fields that are actually provided (not undefined)
+    if (updateSubscriptionDto.playerId !== undefined) {
+      subscriptionData.playerId = updateSubscriptionDto.playerId;
+    }
+    if (updateSubscriptionDto.coachId !== undefined) {
+      subscriptionData.coachId = updateSubscriptionDto.coachId;
+    }
+    if (updateSubscriptionDto.status !== undefined) {
+      subscriptionData.status = updateSubscriptionDto.status;
+    }
+    if (updateSubscriptionDto.startDate !== undefined) {
+      subscriptionData.startDate = updateSubscriptionDto.startDate;
+    }
+    if (updateSubscriptionDto.endDate !== undefined) {
+      subscriptionData.endDate = updateSubscriptionDto.endDate;
+    }
+
+    // Only check and force expiration if trying to set status to 'active'
+    // AND the end date (new or existing) has already passed
+    if (subscriptionData.status === 'active') {
       const endDate = new Date(subscriptionData.endDate || currentData?.endDate);
       const now = new Date();
       
       if (endDate < now) {
         console.log('End date has passed, forcing status to stopped');
         subscriptionData.status = 'stopped';
+        subscriptionData.expiredAt = new Date().toISOString();
+        subscriptionData.expiredBy = 'system-validation';
       }
     }
 

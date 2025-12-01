@@ -22,12 +22,14 @@ export class SubscriptionsController {
   }
 
   @Get()
-  findAll(
+  async findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('coachId') coachId?: string,
     @Query('playerId') playerId?: string,
   ) {
+    // Automatically check for expired subscriptions when viewing the page
+    await this.subscriptionsService.expireSubscriptions();
     return this.subscriptionsService.findAll(search, status, coachId, playerId);
   }
 
@@ -47,5 +49,17 @@ export class SubscriptionsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.subscriptionsService.remove(id);
+  }
+
+  // Manual endpoint to trigger subscription expiration check (useful for testing)
+  @Post('expire-check')
+  async manualExpireCheck() {
+    console.log('Manual subscription expiration check triggered via API');
+    const result = await this.subscriptionsService.expireSubscriptions();
+    return {
+      success: true,
+      message: 'Subscription expiration check completed',
+      ...result,
+    };
   }
 }

@@ -10,6 +10,7 @@ import { PlayersModule } from './players/players.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TasksModule } from './tasks/tasks.module';
+import { CalendarModule } from './calendar/calendar.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { TasksModule } from './tasks/tasks.module';
     SubscriptionsModule,
     DashboardModule,
     TasksModule,
+    CalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService],
