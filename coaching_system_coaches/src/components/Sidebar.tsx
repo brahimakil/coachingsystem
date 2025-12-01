@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { MdDashboard, MdPeople, MdTask, MdLogout, MdMenu, MdClose } from 'react-icons/md';
+import { MdDashboard, MdPeople, MdTask, MdLogout, MdClose } from 'react-icons/md';
 
 interface SidebarProps {
   isOpen: boolean;

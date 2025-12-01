@@ -77,10 +77,6 @@ export const getCalendarEvents = async (
             continue;
           }
 
-          // Add event for each day in the subscription period within the month
-          const startDay = subStart.getMonth() === month ? subStart.getDate() : 1;
-          const endDay = subEnd.getMonth() === month ? subEnd.getDate() : monthEnd.getDate();
-
           // Add start date marker
           if (subStart.getMonth() === month && subStart.getFullYear() === year) {
             events.push({

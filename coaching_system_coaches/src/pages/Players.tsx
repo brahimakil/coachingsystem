@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   MdCheck, 
   MdClose, 
-  MdRefresh, 
   MdEmail, 
   MdFileDownload, 
   MdWarning,

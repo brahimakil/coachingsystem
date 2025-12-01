@@ -113,7 +113,6 @@ const Calendar: React.FC = () => {
   const getEventsForDay = (date: Date | null) => {
     if (!date) return { subscriptions: [], tasks: [], availability: [] };
 
-    const dateStr = date.toISOString().split('T')[0];
     const events = {
       subscriptions: [] as Subscription[],
       tasks: [] as Task[],
