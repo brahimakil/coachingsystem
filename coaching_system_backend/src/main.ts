@@ -11,7 +11,8 @@ async function bootstrap() {
       'http://localhost:5173',
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://coachingsystem-2iiz.vercel.app'
+      'https://coachingsystem-2iiz.vercel.app',
+      'https://coachingsystem-jorh.vercel.app'
     ],
     credentials: true,
   });
