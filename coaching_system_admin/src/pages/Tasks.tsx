@@ -334,6 +334,54 @@ const Tasks = () => {
                   {viewingTask.description}
                 </div>
               </div>
+
+              {/* Submission Section */}
+              {viewingTask.submission && viewingTask.submission.status !== 'not_submitted' && viewingTask.submission.status !== 'pending' && (
+                <div className="view-section">
+                  <h3>Student Submission</h3>
+                  <div className="submission-info">
+                    <div className="detail-item">
+                      <span className="label">Status</span>
+                      <span className={`status-badge ${viewingTask.submission.status}`}>
+                        {viewingTask.submission.status}
+                      </span>
+                    </div>
+                    {viewingTask.submission.submittedAt && (
+                      <div className="detail-item">
+                        <span className="label">Submitted At</span>
+                        <span className="value">{new Date(viewingTask.submission.submittedAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {viewingTask.submission.textResponse && (
+                      <div className="detail-item full-width">
+                        <span className="label">Text Response</span>
+                        <div className="submission-text">
+                          {viewingTask.submission.textResponse}
+                        </div>
+                      </div>
+                    )}
+                    {viewingTask.submission.mediaUrls && viewingTask.submission.mediaUrls.length > 0 && (
+                      <div className="detail-item full-width">
+                        <span className="label">Attachments ({viewingTask.submission.mediaUrls.length})</span>
+                        <div className="media-list">
+                          {viewingTask.submission.mediaUrls.map((url, index) => (
+                            <a 
+                              key={index} 
+                              href={url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="media-link"
+                            >
+                              <span>📎 Attachment {index + 1}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="modal-actions">
                 <button className="cancel-btn" onClick={() => setViewingTask(null)}>
                   Close

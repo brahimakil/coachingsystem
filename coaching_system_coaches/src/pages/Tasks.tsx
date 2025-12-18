@@ -655,37 +655,48 @@ const Tasks: React.FC = () => {
                   )}
                 </div>
 
-                {selectedTask.submission && (
+                {selectedTask.submission && selectedTask.submission.status !== 'pending' && selectedTask.submission.status !== 'not_submitted' && (
                   <div className="detail-section">
-                    <h3>Player Response</h3>
+                    <h3>Player Submission</h3>
                     <div className="detail-row">
                       <span className="detail-label">Submission Status:</span>
                       <span className={`submission-badge ${selectedTask.submission.status}`}>
                         {selectedTask.submission.status}
                       </span>
                     </div>
-                    {selectedTask.submission.videos && selectedTask.submission.videos.length > 0 && (
+                    {selectedTask.submission.submittedAt && (
                       <div className="detail-row">
-                        <span className="detail-label"><MdVideoLibrary /> Videos:</span>
-                        <span className="detail-value">{selectedTask.submission.videos.length} uploaded</span>
+                        <span className="detail-label"><MdAccessTime /> Submitted At:</span>
+                        <span className="detail-value">
+                          {new Date(selectedTask.submission.submittedAt).toLocaleString()}
+                        </span>
                       </div>
                     )}
-                    {selectedTask.submission.notes && (
-                      <div className="detail-row">
-                        <span className="detail-label"><MdNotes /> Notes:</span>
-                        <p className="detail-notes">{selectedTask.submission.notes}</p>
+                    {selectedTask.submission.textResponse && (
+                      <div className="detail-row full-width">
+                        <span className="detail-label"><MdNotes /> Text Response:</span>
+                        <div className="submission-text-box">
+                          {selectedTask.submission.textResponse}
+                        </div>
                       </div>
                     )}
-                    {selectedTask.submission.status !== 'pending' && (
-                      <button 
-                        className="btn-view-submission"
-                        onClick={() => {
-                          setShowTaskDetailsModal(false);
-                          setShowSubmissionModal(true);
-                        }}
-                      >
-                        View Full Submission
-                      </button>
+                    {selectedTask.submission.mediaUrls && selectedTask.submission.mediaUrls.length > 0 && (
+                      <div className="detail-row full-width">
+                        <span className="detail-label"><MdVideoLibrary /> Attachments ({selectedTask.submission.mediaUrls.length}):</span>
+                        <div className="media-attachments">
+                          {selectedTask.submission.mediaUrls.map((url: string, index: number) => (
+                            <a 
+                              key={index} 
+                              href={url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="media-attachment-link"
+                            >
+                              📎 Attachment {index + 1}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}

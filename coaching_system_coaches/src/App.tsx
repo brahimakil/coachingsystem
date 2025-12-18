@@ -8,6 +8,7 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Players from './pages/Players'
 import Tasks from './pages/Tasks'
+import Chat from './pages/Chat'
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="players" element={<Players />} />
                 <Route path="tasks" element={<Tasks />} />
+                <Route path="chat" element={<Chat />} />
               </Route>
               <Route path="/" element={<Navigate to="/dashboard" />} />
             </Routes>

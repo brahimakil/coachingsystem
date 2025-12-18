@@ -95,7 +95,9 @@ const Dashboard = () => {
                 className={`nav-item ${activeMenu === item.id ? 'active' : ''}`}
                 onClick={() => handleMenuClick(item.id)}
               >
-                <Icon className="nav-icon" />
+                <span className="nav-icon-wrapper">
+                  <Icon className="nav-icon" />
+                </span>
                 {isSidebarOpen && <span className="nav-label">{item.label}</span>}
               </button>
             );
@@ -104,7 +106,9 @@ const Dashboard = () => {
 
         <div className="sidebar-footer">
           <button className="logout-btn" onClick={handleLogout}>
-            <MdLogout className="nav-icon" />
+            <span className="nav-icon-wrapper">
+              <MdLogout className="nav-icon" />
+            </span>
             {isSidebarOpen && <span className="nav-label">Logout</span>}
           </button>
         </div>

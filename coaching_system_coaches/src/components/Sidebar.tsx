@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { MdDashboard, MdPeople, MdTask, MdLogout, MdClose } from 'react-icons/md';
+import { MdDashboard, MdPeople, MdTask, MdChat, MdLogout, MdClose } from 'react-icons/md';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
     { path: '/dashboard', icon: MdDashboard, label: 'Overview' },
     { path: '/dashboard/players', icon: MdPeople, label: 'My Players' },
     { path: '/dashboard/tasks', icon: MdTask, label: 'Tasks' },
+    { path: '/dashboard/chat', icon: MdChat, label: 'Live Chat' },
   ];
 
   return (
@@ -43,7 +44,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             end={item.path === '/dashboard'}
           >
-            <item.icon className="nav-icon" />
+            <span className="nav-icon-wrapper">
+              <item.icon className="nav-icon" />
+            </span>
             <span className="nav-label">{item.label}</span>
           </NavLink>
         ))}
@@ -51,7 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
 
       <div className="sidebar-footer">
         <button className="nav-item logout-btn" onClick={handleLogout}>
-          <MdLogout className="nav-icon" />
+          <span className="nav-icon-wrapper">
+            <MdLogout className="nav-icon" />
+          </span>
           <span className="nav-label">Sign Out</span>
         </button>
       </div>

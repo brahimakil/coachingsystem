@@ -98,6 +98,7 @@ const Coaches = () => {
       console.log('Profession:', formData.profession);
       console.log('Available Days:', formData.availableDays);
       console.log('Available Hours:', formData.availableHours);
+      console.log('Available Hours JSON:', JSON.stringify(formData.availableHours, null, 2));
       console.log('Status:', formData.status);
       console.log('CV:', files.cv);
       console.log('Profile Picture:', files.profilePicture);
