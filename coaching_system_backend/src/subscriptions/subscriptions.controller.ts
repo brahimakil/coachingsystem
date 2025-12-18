@@ -21,6 +21,14 @@ export class SubscriptionsController {
     return this.subscriptionsService.create(createSubscriptionDto);
   }
 
+  @Get('check/:playerId/:coachId')
+  checkSubscription(
+    @Param('playerId') playerId: string,
+    @Param('coachId') coachId: string,
+  ) {
+    return this.subscriptionsService.checkSubscription(playerId, coachId);
+  }
+
   @Get()
   async findAll(
     @Query('search') search?: string,

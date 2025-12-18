@@ -28,8 +28,9 @@ export class CreateTaskDto {
   @IsOptional()
   @IsObject()
   submission?: {
-    videos?: string[];
-    notes?: string;
-    status: 'pending' | 'submitted' | 'approved' | 'rejected';
+    textResponse?: string;
+    mediaUrls?: string[];
+    submittedAt?: string;
+    status: 'not_submitted' | 'submitted' | 'approved' | 'rejected';
   };
 }

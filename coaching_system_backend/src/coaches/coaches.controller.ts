@@ -49,12 +49,27 @@ export class CoachesController {
     return this.coachesService.create(createCoachDto, files);
   }
 
+  @Get('filters/options')
+  getFilterOptions() {
+    return this.coachesService.getFilterOptions();
+  }
+
   @Get()
-  findAll(@Query('search') search?: string, @Query('status') status?: string) {
+  findAll(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('profession') profession?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('day') day?: string,
+  ) {
     console.log('=== GET COACHES REQUEST ===');
     console.log('Search:', search);
     console.log('Status filter:', status);
-    return this.coachesService.findAll(search, status);
+    console.log('Profession:', profession);
+    console.log('Price range:', minPrice, '-', maxPrice);
+    console.log('Day:', day);
+    return this.coachesService.findAll(search, status, profession, minPrice, maxPrice, day);
   }
 
   @Get(':id')

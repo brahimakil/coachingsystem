@@ -157,6 +157,50 @@ export class SubscriptionsService {
     }
   }
 
+  async checkSubscription(playerId: string, coachId: string) {
+    try {
+      const snapshot = await this.firestore
+        .collection(this.subscriptionsCollection)
+        .where('playerId', '==', playerId)
+        .where('coachId', '==', coachId)
+        .get();
+
+      if (snapshot.empty) {
+        return {
+          success: true,
+          hasSubscription: false,
+          canSubscribe: true,
+          subscription: null,
+        };
+      }
+
+      // Get the most recent subscription
+      const subscriptions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Sort by createdAt descending
+      subscriptions.sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+      const latestSubscription = subscriptions[0] as any;
+
+      return {
+        success: true,
+        hasSubscription: true,
+        canSubscribe: latestSubscription.status === 'rejected' ? false : latestSubscription.status !== 'active' && latestSubscription.status !== 'pending',
+        subscription: latestSubscription,
+      };
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      throw error;
+    }
+  }
+
   async findAll(search?: string, status?: string, coachId?: string, playerId?: string) {
     console.log('Fetching subscriptions with filters:', {
       search: search || 'none',
@@ -219,7 +263,7 @@ export class SubscriptionsService {
         });
       }
 
-      // 5. Enrich subscriptions with names
+      // 5. Enrich subscriptions with names and full objects
       let enrichedSubscriptions = subscriptions.map(sub => {
         const player = playerMap.get(sub.playerId);
         const coach = coachMap.get(sub.coachId);
@@ -228,8 +272,10 @@ export class SubscriptionsService {
           ...sub,
           playerName: player?.name || sub.playerId || 'Unknown',
           playerEmail: player?.email || '',
+          player: player || null,
           coachName: coach?.name || sub.coachId || 'Unknown',
           coachEmail: coach?.email || '',
+          coach: coach || null,
         };
       });
 

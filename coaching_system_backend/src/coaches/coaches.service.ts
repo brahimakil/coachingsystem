@@ -22,6 +22,13 @@ export class CoachesService {
       });
 
       const { email, password, name, dateOfBirth, profession, pricePerSession, availableDays, availableHours, status } = createCoachDto;
+      
+      console.log('=== PARSED VALUES ===');
+      console.log('availableDays:', availableDays);
+      console.log('availableDays type:', typeof availableDays);
+      console.log('availableHours:', JSON.stringify(availableHours, null, 2));
+      console.log('availableHours type:', typeof availableHours);
+      console.log('availableHours keys:', Object.keys(availableHours));
 
       console.log('Creating Firebase Auth user...');
       // Create user in Firebase Auth
@@ -108,10 +115,46 @@ export class CoachesService {
     }
   }
 
-  async findAll(search?: string, statusFilter?: string) {
+  async getFilterOptions() {
+    const snapshot = await this.firestore.collection('coaches').where('status', '==', 'active').get();
+    
+    const professions = new Set<string>();
+    const prices: number[] = [];
+    const days = new Set<string>();
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.profession) professions.add(data.profession);
+      if (data.pricePerSession) prices.push(data.pricePerSession);
+      if (data.availableHours) {
+        Object.keys(data.availableHours).forEach(day => {
+          if (data.availableHours[day]?.length > 0) {
+            days.add(day);
+          }
+        });
+      }
+    });
+
+    return {
+      success: true,
+      data: {
+        professions: Array.from(professions).sort(),
+        priceRange: prices.length > 0 ? {
+          min: Math.min(...prices),
+          max: Math.max(...prices),
+        } : { min: 0, max: 100 },
+        days: Array.from(days).sort(),
+      },
+    };
+  }
+
+  async findAll(search?: string, statusFilter?: string, profession?: string, minPrice?: string, maxPrice?: string, day?: string) {
     console.log('=== COACHES SERVICE FIND ALL ===');
     console.log('Search term:', search);
     console.log('Status filter:', statusFilter);
+    console.log('Profession:', profession);
+    console.log('Price range:', minPrice, '-', maxPrice);
+    console.log('Day:', day);
     
     let query: any = this.firestore.collection('coaches');
     
@@ -130,7 +173,7 @@ export class CoachesService {
       });
     });
 
-    // Apply search filter on results (client-side filtering for multiple fields)
+    // Apply search filter
     if (search && search.trim() !== '') {
       const searchLower = search.toLowerCase();
       coaches = coaches.filter(coach => 
@@ -138,6 +181,32 @@ export class CoachesService {
         coach.email?.toLowerCase().includes(searchLower) ||
         coach.profession?.toLowerCase().includes(searchLower)
       );
+    }
+
+    // Apply profession filter
+    if (profession && profession.trim() !== '') {
+      coaches = coaches.filter(coach => coach.profession === profession);
+    }
+
+    // Apply price range filter
+    if (minPrice) {
+      const min = parseFloat(minPrice);
+      coaches = coaches.filter(coach => coach.pricePerSession >= min);
+    }
+    if (maxPrice) {
+      const max = parseFloat(maxPrice);
+      coaches = coaches.filter(coach => coach.pricePerSession <= max);
+    }
+
+    // Apply day filter
+    if (day && day.trim() !== '') {
+      coaches = coaches.filter(coach => {
+        if (!coach.availableHours) return false;
+        const dayLower = day.toLowerCase();
+        return Object.keys(coach.availableHours).some(
+          availableDay => availableDay.toLowerCase() === dayLower && coach.availableHours[availableDay]?.length > 0
+        );
+      });
     }
 
     console.log(`Found ${coaches.length} coaches`);

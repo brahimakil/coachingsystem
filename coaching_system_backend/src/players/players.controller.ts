@@ -34,6 +34,11 @@ export class PlayersController {
     return this.playersService.findAll(search, status);
   }
 
+  @Get(':id/dashboard')
+  getPlayerDashboard(@Param('id') id: string) {
+    return this.playersService.getPlayerDashboard(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.playersService.findOne(id);

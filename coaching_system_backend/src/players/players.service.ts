@@ -42,10 +42,15 @@ export class PlayersService {
       await this.firestore.collection('players').doc(userRecord.uid).set(playerData);
       console.log('Player saved to Firestore successfully');
 
+      // Generate custom token for mobile app authentication
+      const customToken = await this.firebaseApp.auth().createCustomToken(userRecord.uid);
+
       return {
         success: true,
         message: 'Player created successfully',
+        access_token: customToken,
         data: playerData,
+        player: playerData,
       };
     } catch (error) {
       console.error('=== ERROR IN PLAYERS SERVICE ===');
@@ -144,6 +149,116 @@ export class PlayersService {
       success: true,
       message: 'Player updated successfully',
     };
+  }
+
+  async getPlayerDashboard(playerId: string) {
+    try {
+      // Get player's subscriptions
+      const subscriptionsSnapshot = await this.firestore
+        .collection('subscriptions')
+        .where('playerId', '==', playerId)
+        .get();
+
+      const subscriptions: any[] = subscriptionsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Count active subscriptions
+      const activeSubscriptions = subscriptions.filter(sub => sub.status === 'active').length;
+
+      // Get player's tasks (if you have a tasks collection)
+      const tasksSnapshot = await this.firestore
+        .collection('tasks')
+        .where('playerId', '==', playerId)
+        .get();
+
+      const tasks: any[] = tasksSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const completedTasks = tasks.filter(task => task.status === 'completed').length;
+      const pendingTasks = tasks.filter(task => task.status === 'pending').length;
+
+      // Get player's coaches (from subscriptions)
+      const coachIds = [...new Set(subscriptions.map(sub => sub.coachId))];
+      const coaches: any[] = [];
+
+      for (const coachId of coachIds) {
+        const coachDoc = await this.firestore.collection('coaches').doc(coachId).get();
+        if (coachDoc.exists) {
+          coaches.push({
+            id: coachDoc.id,
+            ...coachDoc.data(),
+          });
+        }
+      }
+
+      // Get recent activities
+      const recentActivities: any[] = [];
+
+      // Add completed tasks to activities
+      const recentCompletedTasks = tasks
+        .filter(task => task.status === 'completed' && task.completedAt)
+        .sort((a, b) => {
+          const aTime = a.completedAt?.toDate?.() || new Date(a.completedAt);
+          const bTime = b.completedAt?.toDate?.() || new Date(b.completedAt);
+          return bTime.getTime() - aTime.getTime();
+        })
+        .slice(0, 3);
+
+      recentCompletedTasks.forEach(task => {
+        recentActivities.push({
+          type: 'task_completed',
+          title: 'Task Completed',
+          description: task.title || 'Task',
+          time: task.completedAt,
+        });
+      });
+
+      // Add new tasks to activities
+      const recentNewTasks = tasks
+        .filter(task => task.status === 'pending' && task.createdAt)
+        .sort((a, b) => {
+          const aTime = a.createdAt?.toDate?.() || new Date(a.createdAt);
+          const bTime = b.createdAt?.toDate?.() || new Date(b.createdAt);
+          return bTime.getTime() - aTime.getTime();
+        })
+        .slice(0, 2);
+
+      recentNewTasks.forEach(task => {
+        recentActivities.push({
+          type: 'task_assigned',
+          title: 'New Task Assigned',
+          description: task.title || 'Task',
+          time: task.createdAt,
+        });
+      });
+
+      // Sort activities by time
+      recentActivities.sort((a, b) => {
+        const aTime = a.time?.toDate?.() || new Date(a.time);
+        const bTime = b.time?.toDate?.() || new Date(b.time);
+        return bTime.getTime() - aTime.getTime();
+      });
+
+      return {
+        success: true,
+        data: {
+          stats: {
+            activeSubscriptions,
+            completedTasks,
+            pendingTasks,
+            totalCoaches: coaches.length,
+          },
+          recentActivities: recentActivities.slice(0, 5),
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching player dashboard:', error);
+      throw new BadRequestException('Failed to fetch dashboard data');
+    }
   }
 
   async remove(id: string) {

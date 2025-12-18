@@ -197,6 +197,63 @@ export class AuthService {
     }
   }
 
+  async loginPlayer(loginDto: LoginDto) {
+    try {
+      const { email, password } = loginDto;
+
+      // Get user by email from Firebase Auth
+      const userRecord = await this.firebaseApp.auth().getUserByEmail(email);
+
+      if (!userRecord) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // Check if user exists in players collection
+      const playerDoc = await this.firestore.collection('players').doc(userRecord.uid).get();
+
+      if (!playerDoc.exists) {
+        throw new UnauthorizedException('Access denied. You are not a player.');
+      }
+
+      const playerData = playerDoc.data();
+
+      if (!playerData) {
+        throw new UnauthorizedException('Player data not found.');
+      }
+
+      // Check if player is active
+      if (playerData.status !== 'active') {
+        throw new UnauthorizedException('Your account is not active. Please contact support.');
+      }
+
+      // Generate custom token
+      const customToken = await this.firebaseApp.auth().createCustomToken(userRecord.uid);
+
+      // Update last login
+      await this.firestore.collection('players').doc(userRecord.uid).update({
+        lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: 'Login successful',
+        access_token: customToken,
+        player: {
+          uid: userRecord.uid,
+          email: userRecord.email,
+          name: playerData.name,
+          dateOfBirth: playerData.dateOfBirth,
+          status: playerData.status,
+        },
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Invalid credentials');
+    }
+  }
+
   async loginCoach(loginDto: LoginDto) {
     try {
       const { email, password } = loginDto;

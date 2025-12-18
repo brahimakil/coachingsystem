@@ -46,4 +46,10 @@ export class AuthController {
   async loginCoach(@Body() loginDto: LoginDto) {
     return this.authService.loginCoach(loginDto);
   }
+
+  @Post('player/login')
+  @HttpCode(HttpStatus.OK)
+  async loginPlayer(@Body() loginDto: LoginDto) {
+    return this.authService.loginPlayer(loginDto);
+  }
 }

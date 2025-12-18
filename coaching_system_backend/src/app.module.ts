@@ -11,6 +11,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CalendarModule } from './calendar/calendar.module';
     DashboardModule,
     TasksModule,
     CalendarModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

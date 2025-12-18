@@ -1,11 +1,15 @@
 import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Firestore } from 'firebase-admin/firestore';
+import * as admin from 'firebase-admin';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
 export class TasksService {
-  constructor(@Inject('FIRESTORE') private firestore: Firestore) {}
+  constructor(
+    @Inject('FIRESTORE') private firestore: Firestore,
+    @Inject('FIREBASE_ADMIN') private firebaseApp: admin.app.App,
+  ) {}
 
   private tasksCollection = 'tasks';
 
@@ -319,6 +323,79 @@ export class TasksService {
       return validPlayers;
     } catch (error) {
       console.error('Error fetching coach players:', error);
+      throw error;
+    }
+  }
+
+  async submitTask(taskId: string, textResponse: string | undefined, files: Express.Multer.File[]) {
+    console.log('=== SUBMIT TASK ===');
+    console.log('Task ID:', taskId);
+    console.log('Text Response:', textResponse);
+    console.log('Files:', files?.length || 0);
+
+    try {
+      // Get task
+      const taskDoc = await this.firestore.collection(this.tasksCollection).doc(taskId).get();
+
+      if (!taskDoc.exists) {
+        throw new NotFoundException('Task not found');
+      }
+
+      const taskData = taskDoc.data();
+
+      if (taskData?.submission?.status === 'submitted' || taskData?.submission?.status === 'approved') {
+        throw new BadRequestException('Task has already been submitted');
+      }
+
+      // Upload files to Firebase Storage
+      const bucket = this.firebaseApp.storage().bucket();
+      const mediaUrls: string[] = [];
+
+      if (files && files.length > 0) {
+        for (const file of files) {
+          const fileName = `tasks/${taskId}/${Date.now()}_${file.originalname}`;
+          console.log(`Uploading file to: ${fileName}`);
+          
+          const fileUpload = bucket.file(fileName);
+          
+          await fileUpload.save(file.buffer, {
+            metadata: {
+              contentType: file.mimetype,
+            },
+          });
+
+          await fileUpload.makePublic();
+          const url = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+          console.log(`File uploaded: ${url}`);
+          mediaUrls.push(url);
+        }
+      }
+
+      // Update task with submission
+      const submissionData = {
+        textResponse: textResponse || '',
+        mediaUrls: mediaUrls,
+        submittedAt: new Date().toISOString(),
+        status: 'submitted',
+      };
+
+      await this.firestore.collection(this.tasksCollection).doc(taskId).update({
+        submission: submissionData,
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log('Task submitted successfully');
+
+      return {
+        success: true,
+        message: 'Task submitted successfully',
+        data: {
+          id: taskId,
+          submission: submissionData,
+        },
+      };
+    } catch (error) {
+      console.error('Error submitting task:', error);
       throw error;
     }
   }

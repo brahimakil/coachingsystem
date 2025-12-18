@@ -7,7 +7,10 @@ import {
   Param,
   Delete,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -43,6 +46,16 @@ export class TasksController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateTaskDto: UpdateTaskDto) {
     return this.tasksService.update(id, updateTaskDto);
+  }
+
+  @Post(':id/submit')
+  @UseInterceptors(FilesInterceptor('media', 10))
+  submitTask(
+    @Param('id') id: string,
+    @Body() body: { textResponse?: string },
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.tasksService.submitTask(id, body.textResponse, files);
   }
 
   @Delete(':id')
