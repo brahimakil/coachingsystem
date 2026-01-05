@@ -52,4 +52,22 @@ export class AuthController {
   async loginPlayer(@Body() loginDto: LoginDto) {
     return this.authService.loginPlayer(loginDto);
   }
+
+  @Post('player/register')
+  @HttpCode(HttpStatus.CREATED)
+  async registerPlayer(@Body() createPlayerDto: any) {
+    return this.authService.registerPlayer(createPlayerDto);
+  }
+
+  @Post('player/verify-register')
+  @HttpCode(HttpStatus.OK)
+  async verifyPlayerRegistration(@Body() body: { email: string; otp: string }) {
+    return this.authService.verifyPlayerRegistration(body.email, body.otp);
+  }
+
+  @Post('player/verify-login')
+  @HttpCode(HttpStatus.OK)
+  async verifyPlayerLogin(@Body() body: { email: string; otp: string }) {
+    return this.authService.verifyPlayerLogin(body.email, body.otp);
+  }
 }

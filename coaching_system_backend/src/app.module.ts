@@ -12,6 +12,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { ChatModule } from './chat/chat.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ChatModule } from './chat/chat.module';
     TasksModule,
     CalendarModule,
     ChatModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

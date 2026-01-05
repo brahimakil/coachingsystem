@@ -3,12 +3,15 @@ import * as admin from 'firebase-admin';
 import { Firestore } from 'firebase-admin/firestore';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { EmailService } from '../email/email.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
   constructor(
     @Inject('FIREBASE_ADMIN') private firebaseApp: admin.app.App,
     @Inject('FIRESTORE') private firestore: Firestore,
+    private emailService: EmailService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -226,25 +229,16 @@ export class AuthService {
         throw new UnauthorizedException('Your account is not active. Please contact support.');
       }
 
-      // Generate custom token
-      const customToken = await this.firebaseApp.auth().createCustomToken(userRecord.uid);
-
-      // Update last login
-      await this.firestore.collection('players').doc(userRecord.uid).update({
-        lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      // Send OTP
+      const otp = this.generateOtp();
+      await this.storeOtp(email, otp, 'login');
+      await this.emailService.sendOtp(email, otp);
 
       return {
         success: true,
-        message: 'Login successful',
-        access_token: customToken,
-        player: {
-          uid: userRecord.uid,
-          email: userRecord.email,
-          name: playerData.name,
-          dateOfBirth: playerData.dateOfBirth,
-          status: playerData.status,
-        },
+        message: 'OTP sent to email. Please verify to complete login.',
+        requireOtp: true,
+        email,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -329,5 +323,154 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
     }
+  }
+
+  private generateOtp(): string {
+    return crypto.randomInt(100000, 999999).toString();
+  }
+
+  private async storeOtp(email: string, otp: string, type: 'login' | 'register') {
+    const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await this.firestore.collection('otp_requests').doc(`${email}_${type}`).set({
+      email,
+      otp,
+      type,
+      expiresAt,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  private async verifyOtp(email: string, otp: string, type: 'login' | 'register'): Promise<boolean> {
+    const docRef = this.firestore.collection('otp_requests').doc(`${email}_${type}`);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return false;
+    }
+
+    const data = doc.data();
+    if (data.otp !== otp) {
+      return false;
+    }
+
+    if (data.expiresAt.toMillis() < Date.now()) {
+      await docRef.delete();
+      return false;
+    }
+
+    await docRef.delete();
+    return true;
+  }
+
+  async registerPlayer(createPlayerDto: any) {
+    try {
+      const { email, password, name, phone } = createPlayerDto;
+
+      // Check if user already exists in Firebase
+      try {
+        await this.firebaseApp.auth().getUserByEmail(email);
+        throw new BadRequestException('Email already exists');
+      } catch (error) {
+        if (error.code !== 'auth/user-not-found') {
+          throw error;
+        }
+      }
+
+      // Create user in Firebase Auth (disabled initially)
+      const userRecord = await this.firebaseApp.auth().createUser({
+        email,
+        password,
+        displayName: name,
+        disabled: true, // Disable until OTP verified
+      });
+
+      // Save player to Firestore
+      await this.firestore.collection('players').doc(userRecord.uid).set({
+        uid: userRecord.uid,
+        email: userRecord.email,
+        name: userRecord.displayName,
+        phone,
+        status: 'pending_verification',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        role: 'player',
+      });
+
+      // Send OTP
+      const otp = this.generateOtp();
+      await this.storeOtp(email, otp, 'register');
+      await this.emailService.sendOtp(email, otp);
+
+      return {
+        success: true,
+        message: 'OTP sent to email. Please verify to complete registration.',
+        requireOtp: true,
+        email,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async verifyPlayerRegistration(email: string, otp: string) {
+    const isValid = await this.verifyOtp(email, otp, 'register');
+    if (!isValid) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    const userRecord = await this.firebaseApp.auth().getUserByEmail(email);
+    
+    // Enable user
+    await this.firebaseApp.auth().updateUser(userRecord.uid, { disabled: false });
+    
+    // Update Firestore status
+    await this.firestore.collection('players').doc(userRecord.uid).update({
+      status: 'active',
+      emailVerified: true,
+    });
+
+    // Generate token
+    const customToken = await this.firebaseApp.auth().createCustomToken(userRecord.uid);
+    
+    // Get player data
+    const playerDoc = await this.firestore.collection('players').doc(userRecord.uid).get();
+    const playerData = playerDoc.data();
+
+    return {
+      success: true,
+      message: 'Registration successful',
+      access_token: customToken,
+      player: {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        name: playerData.name,
+        status: 'active',
+      },
+    };
+  }
+
+  async verifyPlayerLogin(email: string, otp: string) {
+    const isValid = await this.verifyOtp(email, otp, 'login');
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    const userRecord = await this.firebaseApp.auth().getUserByEmail(email);
+    const customToken = await this.firebaseApp.auth().createCustomToken(userRecord.uid);
+    
+    const playerDoc = await this.firestore.collection('players').doc(userRecord.uid).get();
+    const playerData = playerDoc.data();
+
+    return {
+      success: true,
+      message: 'Login successful',
+      access_token: customToken,
+      player: {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        name: playerData.name,
+        status: playerData.status,
+      },
+    };
   }
 }
