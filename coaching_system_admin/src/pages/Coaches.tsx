@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { MdAdd, MdDelete, MdClose, MdCheckCircle, MdPending, MdCancel, MdStar } from 'react-icons/md';
 import { coachesService } from '../services/coaches.service';
-import { ratingsService, Rating, RatingStats } from '../services/ratings.service';
+import { ratingsService } from '../services/ratings.service';
+import type { Rating, RatingStats } from '../services/ratings.service';
 import '../styles/coaches.css';
 
 interface Coach {
