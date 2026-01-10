@@ -10,6 +10,7 @@ import CustomDrawer from '../components/CustomDrawer';
 // Views
 import LoginView from '../views/LoginView';
 import RegisterView from '../views/RegisterView';
+import ForgotPasswordView from '../views/ForgotPasswordView';
 import HomeView from '../views/HomeView';
 import CoachesView from '../views/CoachesView';
 import CoachDetailView from '../views/CoachDetailView';
@@ -37,6 +38,7 @@ const AuthStack = () => {
     >
       <Stack.Screen name="Login" component={LoginView} />
       <Stack.Screen name="Register" component={RegisterView} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordView} />
     </Stack.Navigator>
   );
 };

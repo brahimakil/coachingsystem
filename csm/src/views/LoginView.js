@@ -18,10 +18,12 @@ import { colors, spacing, borderRadius, typography } from '../styles/theme';
 const LoginView = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [showOtpInput, setShowOtpInput] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   
-  const { login } = useAuth();
+  const { login, verifyLogin } = useAuth();
 
   const validate = () => {
     const newErrors = {};
@@ -49,8 +51,30 @@ const LoginView = ({ navigation }) => {
     try {
       const result = await login(email.trim(), password);
       
-      if (!result.success) {
+      if (result.success && result.requireOtp) {
+        setShowOtpInput(true);
+        Alert.alert('OTP Sent', result.message);
+      } else if (!result.success) {
         Alert.alert('Login Failed', result.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp || otp.length < 6) {
+      Alert.alert('Error', 'Please enter a valid OTP');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await verifyLogin(email.trim(), otp);
+      if (!result.success) {
+        Alert.alert('Verification Failed', result.error || 'Invalid OTP');
       }
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -78,43 +102,71 @@ const LoginView = ({ navigation }) => {
         </View>
 
         <View style={styles.form}>
-          <CustomInput
-            label="Email Address"
-            placeholder="Enter your email"
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              setErrors({ ...errors, email: '' });
-            }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            error={errors.email}
-            icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
-          />
+          {!showOtpInput ? (
+            <>
+              <CustomInput
+                label="Email Address"
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setErrors({ ...errors, email: '' });
+                }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                error={errors.email}
+                icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
+              />
 
-          <CustomInput
-            label="Password"
-            placeholder="Enter your password"
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              setErrors({ ...errors, password: '' });
-            }}
-            secureTextEntry
-            error={errors.password}
-            icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
-          />
+              <CustomInput
+                label="Password"
+                placeholder="Enter your password"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setErrors({ ...errors, password: '' });
+                }}
+                secureTextEntry
+                error={errors.password}
+                icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
+              />
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.forgotPassword}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
 
-          <CustomButton
-            title="Login"
-            onPress={handleLogin}
-            loading={loading}
-            style={styles.loginButton}
-          />
+              <CustomButton
+                title="Login"
+                onPress={handleLogin}
+                loading={loading}
+                style={styles.loginButton}
+              />
+            </>
+          ) : (
+            <>
+              <CustomInput
+                label="Enter OTP"
+                placeholder="123456"
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                maxLength={6}
+                icon={<Ionicons name="key-outline" size={20} color={colors.textSecondary} />}
+              />
+              <CustomButton
+                title="Verify OTP"
+                onPress={handleVerifyOtp}
+                loading={loading}
+                style={styles.loginButton}
+              />
+              <TouchableOpacity onPress={() => setShowOtpInput(false)} style={{alignItems: 'center', marginBottom: 20}}>
+                 <Text style={{color: colors.primary}}>Back to Login</Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />

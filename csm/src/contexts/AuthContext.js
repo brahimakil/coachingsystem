@@ -33,6 +33,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const data = await AuthModel.login(email, password);
+      if (data.requireOtp) {
+        return { success: true, requireOtp: true, email: data.email, message: data.message };
+      }
       setPlayer(data.player);
       setIsAuthenticated(true);
       return { success: true };
@@ -44,11 +47,36 @@ export const AuthProvider = ({ children }) => {
   const register = async (playerData) => {
     try {
       const data = await AuthModel.register(playerData);
+      if (data.requireOtp) {
+        return { success: true, requireOtp: true, email: data.email, message: data.message };
+      }
       setPlayer(data.player);
       setIsAuthenticated(true);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message || 'Registration failed' };
+    }
+  };
+
+  const verifyLogin = async (email, otp) => {
+    try {
+      const data = await AuthModel.verifyLogin(email, otp);
+      setPlayer(data.player);
+      setIsAuthenticated(true);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || 'Verification failed' };
+    }
+  };
+
+  const verifyRegister = async (email, otp) => {
+    try {
+      const data = await AuthModel.verifyRegister(email, otp);
+      setPlayer(data.player);
+      setIsAuthenticated(true);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || 'Verification failed' };
     }
   };
 
@@ -71,6 +99,8 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated,
         login,
         register,
+        verifyLogin,
+        verifyRegister,
         logout,
       }}
     >

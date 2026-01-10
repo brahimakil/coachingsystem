@@ -23,10 +23,12 @@ const RegisterView = ({ navigation }) => {
     confirmPassword: '',
     phone: '',
   });
+  const [otp, setOtp] = useState('');
+  const [showOtpInput, setShowOtpInput] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   
-  const { register } = useAuth();
+  const { register, verifyRegister } = useAuth();
 
   const updateField = (field, value) => {
     setFormData({ ...formData, [field]: value });
@@ -78,8 +80,30 @@ const RegisterView = ({ navigation }) => {
       
       const result = await register(playerData);
       
-      if (!result.success) {
+      if (result.success && result.requireOtp) {
+        setShowOtpInput(true);
+        Alert.alert('OTP Sent', result.message);
+      } else if (!result.success) {
         Alert.alert('Registration Failed', result.error || 'Could not create account');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp || otp.length < 6) {
+      Alert.alert('Error', 'Please enter a valid OTP');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await verifyRegister(formData.email.trim(), otp);
+      if (!result.success) {
+        Alert.alert('Verification Failed', result.error || 'Invalid OTP');
       }
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -114,62 +138,87 @@ const RegisterView = ({ navigation }) => {
         </View>
 
         <View style={styles.form}>
-          <CustomInput
-            label="Full Name"
-            placeholder="Enter your full name"
-            value={formData.name}
-            onChangeText={(text) => updateField('name', text)}
-            error={errors.name}
-            icon={<Ionicons name="person-outline" size={20} color={colors.textSecondary} />}
-          />
+          {!showOtpInput ? (
+            <>
+              <CustomInput
+                label="Full Name"
+                placeholder="Enter your full name"
+                value={formData.name}
+                onChangeText={(text) => updateField('name', text)}
+                error={errors.name}
+                icon={<Ionicons name="person-outline" size={20} color={colors.textSecondary} />}
+              />
 
-          <CustomInput
-            label="Email Address"
-            placeholder="Enter your email"
-            value={formData.email}
-            onChangeText={(text) => updateField('email', text)}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            error={errors.email}
-            icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
-          />
+              <CustomInput
+                label="Email Address"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChangeText={(text) => updateField('email', text)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                error={errors.email}
+                icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
+              />
 
-          <CustomInput
-            label="Phone Number"
-            placeholder="Enter your phone number"
-            value={formData.phone}
-            onChangeText={(text) => updateField('phone', text)}
-            keyboardType="phone-pad"
-            error={errors.phone}
-            icon={<Ionicons name="call-outline" size={20} color={colors.textSecondary} />}
-          />
+              <CustomInput
+                label="Phone Number"
+                placeholder="Enter your phone number"
+                value={formData.phone}
+                onChangeText={(text) => updateField('phone', text)}
+                keyboardType="phone-pad"
+                error={errors.phone}
+                icon={<Ionicons name="call-outline" size={20} color={colors.textSecondary} />}
+              />
 
-          <CustomInput
-            label="Password"
-            placeholder="Create a password"
-            value={formData.password}
-            onChangeText={(text) => updateField('password', text)}
-            secureTextEntry
-            error={errors.password}
-            icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
-          />
+              <CustomInput
+                label="Password"
+                placeholder="Create a password"
+                value={formData.password}
+                onChangeText={(text) => updateField('password', text)}
+                secureTextEntry
+                error={errors.password}
+                icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
+              />
 
-          <CustomInput
-            label="Confirm Password"
-            placeholder="Confirm your password"
-            value={formData.confirmPassword}
-            onChangeText={(text) => updateField('confirmPassword', text)}
-            secureTextEntry
-            error={errors.confirmPassword}
-            icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
-          />
+              <CustomInput
+                label="Confirm Password"
+                placeholder="Confirm your password"
+                value={formData.confirmPassword}
+                onChangeText={(text) => updateField('confirmPassword', text)}
+                secureTextEntry
+                error={errors.confirmPassword}
+                icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
+              />
 
-          <CustomButton
-            title="Create Account"
-            onPress={handleRegister}
-            loading={loading}
-            style={styles.registerButton}
-          />
+              <CustomButton
+                title="Create Account"
+                onPress={handleRegister}
+                loading={loading}
+                style={styles.registerButton}
+              />
+            </>
+          ) : (
+            <>
+              <CustomInput
+                label="Enter OTP"
+                placeholder="123456"
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                maxLength={6}
+                icon={<Ionicons name="key-outline" size={20} color={colors.textSecondary} />}
+              />
+              <CustomButton
+                title="Verify OTP"
+                onPress={handleVerifyOtp}
+                loading={loading}
+                style={styles.registerButton}
+              />
+              <TouchableOpacity onPress={() => setShowOtpInput(false)} style={{alignItems: 'center', marginBottom: 20}}>
+                 <Text style={{color: colors.primary}}>Back to Registration</Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.loginLink}
