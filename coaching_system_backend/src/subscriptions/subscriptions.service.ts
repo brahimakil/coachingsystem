@@ -2,10 +2,14 @@ import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { Firestore } from 'firebase-admin/firestore';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(@Inject('FIRESTORE') private firestore: Firestore) {}
+  constructor(
+    @Inject('FIRESTORE') private firestore: Firestore,
+    private chatService: ChatService,
+  ) {}
   
   private subscriptionsCollection = 'subscriptions';
 
@@ -82,6 +86,21 @@ export class SubscriptionsService {
 
     console.log('Subscription created with ID:', docRef.id);
 
+    // Auto-create chat if subscription is active
+    if (createSubscriptionDto.status === 'active') {
+      try {
+        await this.chatService.getOrCreateConversation(
+          createSubscriptionDto.coachId,
+          createSubscriptionDto.playerId,
+          'active'
+        );
+        console.log('Chat auto-created for active subscription');
+      } catch (chatError) {
+        console.error('Error auto-creating chat:', chatError);
+        // Don't fail the subscription creation if chat creation fails
+      }
+    }
+
     return {
       id: docRef.id,
       ...subscriptionData,
@@ -128,6 +147,14 @@ export class SubscriptionsService {
             expiredAt: new Date().toISOString(),
             expiredBy: 'system-auto',
           });
+
+          // Auto-close chat when subscription expires
+          try {
+            await this.chatService.closeConversation(data.coachId, data.playerId);
+            console.log(`[EXPIRATION CHECK] Chat auto-closed for expired subscription ${doc.id}`);
+          } catch (chatError) {
+            console.error(`[EXPIRATION CHECK] Error closing chat for subscription ${doc.id}:`, chatError);
+          }
           
           expiredCount++;
           expiredSubscriptions.push({
@@ -444,6 +471,29 @@ export class SubscriptionsService {
     await docRef.update(subscriptionData);
 
     console.log('Subscription updated successfully');
+
+    // Handle chat based on status change
+    const coachId = subscriptionData.coachId || currentData?.coachId;
+    const playerId = subscriptionData.playerId || currentData?.playerId;
+    const previousStatus = currentData?.status;
+    const newStatus = subscriptionData.status;
+
+    if (coachId && playerId && newStatus && newStatus !== previousStatus) {
+      try {
+        if (newStatus === 'active') {
+          // Auto-create/reopen chat when subscription becomes active
+          await this.chatService.getOrCreateConversation(coachId, playerId, 'active');
+          console.log('Chat auto-created/reopened for activated subscription');
+        } else if (newStatus === 'stopped' || newStatus === 'cancelled' || newStatus === 'rejected') {
+          // Auto-close chat when subscription is stopped/cancelled/rejected
+          await this.chatService.closeConversation(coachId, playerId);
+          console.log('Chat auto-closed for deactivated subscription');
+        }
+      } catch (chatError) {
+        console.error('Error managing chat on subscription update:', chatError);
+        // Don't fail the subscription update if chat management fails
+      }
+    }
 
     return this.findOne(id);
   }

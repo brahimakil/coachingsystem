@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Firestore } from 'firebase-admin/firestore';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -12,7 +12,7 @@ export class ChatService {
   private conversationsCollection = 'conversations';
 
   // Get or create conversation between coach and player
-  async getOrCreateConversation(coachId: string, playerId: string) {
+  async getOrCreateConversation(coachId: string, playerId: string, status: 'active' | 'closed' = 'active') {
     console.log('Getting/creating conversation for coach:', coachId, 'player:', playerId);
 
     try {
@@ -26,9 +26,17 @@ export class ChatService {
 
       if (!existingConversation.empty) {
         const doc = existingConversation.docs[0];
+        // If conversation exists, update its status if needed
+        if (status === 'active') {
+          await doc.ref.update({
+            status: 'active',
+            updatedAt: new Date().toISOString(),
+          });
+        }
         return {
           id: doc.id,
           ...doc.data(),
+          status: status,
         };
       }
 
@@ -36,6 +44,7 @@ export class ChatService {
       const conversationData = {
         coachId,
         playerId,
+        status,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastMessage: null,
@@ -51,6 +60,66 @@ export class ChatService {
       };
     } catch (error) {
       console.error('Error getting/creating conversation:', error);
+      throw error;
+    }
+  }
+
+  // Close conversation between coach and player
+  async closeConversation(coachId: string, playerId: string) {
+    console.log('Closing conversation for coach:', coachId, 'player:', playerId);
+
+    try {
+      const existingConversation = await this.firestore
+        .collection(this.conversationsCollection)
+        .where('coachId', '==', coachId)
+        .where('playerId', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (!existingConversation.empty) {
+        const doc = existingConversation.docs[0];
+        await doc.ref.update({
+          status: 'closed',
+          closedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        console.log('Conversation closed:', doc.id);
+        return { success: true, conversationId: doc.id };
+      }
+
+      return { success: false, message: 'No conversation found' };
+    } catch (error) {
+      console.error('Error closing conversation:', error);
+      throw error;
+    }
+  }
+
+  // Reopen conversation between coach and player
+  async reopenConversation(coachId: string, playerId: string) {
+    console.log('Reopening conversation for coach:', coachId, 'player:', playerId);
+
+    try {
+      const existingConversation = await this.firestore
+        .collection(this.conversationsCollection)
+        .where('coachId', '==', coachId)
+        .where('playerId', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (!existingConversation.empty) {
+        const doc = existingConversation.docs[0];
+        await doc.ref.update({
+          status: 'active',
+          closedAt: null,
+          updatedAt: new Date().toISOString(),
+        });
+        console.log('Conversation reopened:', doc.id);
+        return { success: true, conversationId: doc.id };
+      }
+
+      return { success: false, message: 'No conversation found' };
+    } catch (error) {
+      console.error('Error reopening conversation:', error);
       throw error;
     }
   }
@@ -209,6 +278,12 @@ export class ChatService {
 
       if (!conversationDoc.exists) {
         throw new NotFoundException('Conversation not found');
+      }
+
+      // Check if conversation is closed
+      const conversationData = conversationDoc.data();
+      if (conversationData?.status === 'closed') {
+        throw new BadRequestException('Cannot send message. This conversation is closed because the subscription has ended.');
       }
 
       const messageData: any = {
