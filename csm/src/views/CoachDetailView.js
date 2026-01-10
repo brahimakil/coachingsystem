@@ -9,10 +9,13 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CoachModel from '../models/CoachModel';
 import SubscriptionModel from '../models/SubscriptionModel';
+import RatingModel from '../models/RatingModel';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius, typography } from '../styles/theme';
 
@@ -23,11 +26,44 @@ const CoachDetailView = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [subscribing, setSubscribing] = useState(false);
+  
+  // Rating states
+  const [ratings, setRatings] = useState([]);
+  const [ratingStats, setRatingStats] = useState(null);
+  const [myRating, setMyRating] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newReview, setNewReview] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
     fetchCoachDetails();
     checkSubscriptionStatus();
+    fetchRatings();
   }, [coachId]);
+
+  const fetchRatings = async () => {
+    try {
+      const [ratingsData, statsData] = await Promise.all([
+        RatingModel.getCoachRatings(coachId),
+        RatingModel.getCoachRatingStats(coachId),
+      ]);
+      setRatings(ratingsData || []);
+      setRatingStats(statsData);
+
+      // Check if player has already rated
+      if (player?.uid) {
+        const playerRating = await RatingModel.getPlayerRatingForCoach(coachId, player.uid);
+        if (playerRating) {
+          setMyRating(playerRating);
+          setNewRating(playerRating.rating);
+          setNewReview(playerRating.review || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching ratings:', error);
+    }
+  };
 
   const checkSubscriptionStatus = async () => {
     if (!player?.uid) return;
@@ -142,6 +178,69 @@ const CoachDetailView = ({ route, navigation }) => {
     return days[dayKey] || dayKey;
   };
 
+  const handleSubmitRating = async () => {
+    if (!player?.uid) {
+      Alert.alert('Error', 'Please login to rate');
+      return;
+    }
+
+    setSubmittingRating(true);
+    try {
+      if (myRating) {
+        // Update existing rating
+        await RatingModel.updateRating(myRating.id, {
+          rating: newRating,
+          review: newReview,
+        });
+        Alert.alert('Success', 'Your rating has been updated!');
+      } else {
+        // Create new rating
+        await RatingModel.createRating({
+          coachId,
+          playerId: player.uid,
+          playerName: player.name,
+          rating: newRating,
+          review: newReview,
+        });
+        Alert.alert('Success', 'Thank you for your rating!');
+      }
+      setShowRatingModal(false);
+      fetchRatings();
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to submit rating');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
+  const canRate = () => {
+    // Player can rate if they have any subscription (active, stopped, completed) with this coach
+    return subscriptionStatus?.hasSubscription && 
+           subscriptionStatus?.subscription?.status !== 'pending' &&
+           subscriptionStatus?.subscription?.status !== 'rejected';
+  };
+
+  const renderStars = (rating, size = 16, interactive = false) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <TouchableOpacity
+          key={i}
+          disabled={!interactive}
+          onPress={() => interactive && setNewRating(i)}
+        >
+          <Ionicons
+            name={i <= rating ? 'star' : 'star-outline'}
+            size={size}
+            color={colors.warning}
+            style={{ marginRight: 2 }}
+          />
+        </TouchableOpacity>
+      );
+    }
+    return <View style={{ flexDirection: 'row' }}>{stars}</View>;
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
@@ -183,6 +282,16 @@ const CoachDetailView = ({ route, navigation }) => {
               {coach.status === 'active' ? 'Available' : 'Pending'}
             </Text>
           </View>
+
+          {/* Rating Display in Header */}
+          {ratingStats && ratingStats.totalReviews > 0 && (
+            <View style={styles.headerRating}>
+              {renderStars(Math.round(ratingStats.averageRating), 18)}
+              <Text style={styles.headerRatingText}>
+                {ratingStats.averageRating.toFixed(1)} ({ratingStats.totalReviews} reviews)
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -292,7 +401,103 @@ const CoachDetailView = ({ route, navigation }) => {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Reviews Section */}
+        <View style={styles.infoCard}>
+          <View style={styles.reviewsHeader}>
+            <Text style={styles.cardTitle}>Reviews</Text>
+            {canRate() && (
+              <TouchableOpacity
+                style={styles.rateButton}
+                onPress={() => setShowRatingModal(true)}
+              >
+                <Ionicons name={myRating ? 'create' : 'star'} size={16} color={colors.white} />
+                <Text style={styles.rateButtonText}>{myRating ? 'Edit' : 'Rate'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {ratingStats && ratingStats.totalReviews > 0 ? (
+            <>
+              <View style={styles.ratingOverview}>
+                <Text style={styles.avgRating}>{ratingStats.averageRating.toFixed(1)}</Text>
+                <View style={styles.ratingOverviewRight}>
+                  {renderStars(Math.round(ratingStats.averageRating), 20)}
+                  <Text style={styles.totalReviews}>{ratingStats.totalReviews} reviews</Text>
+                </View>
+              </View>
+
+              {ratings.slice(0, 5).map((review, index) => (
+                <View key={review.id || index} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewerName}>{review.playerName}</Text>
+                    {renderStars(review.rating, 14)}
+                  </View>
+                  {review.review && (
+                    <Text style={styles.reviewText}>{review.review}</Text>
+                  )}
+                  {review.createdAt && (
+                    <Text style={styles.reviewDate}>
+                      {new Date(review.createdAt._seconds ? review.createdAt._seconds * 1000 : review.createdAt).toLocaleDateString()}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </>
+          ) : (
+            <Text style={styles.noReviewsText}>No reviews yet</Text>
+          )}
+        </View>
       </View>
+
+      {/* Rating Modal */}
+      <Modal
+        visible={showRatingModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowRatingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{myRating ? 'Edit Your Rating' : 'Rate Coach'}</Text>
+            
+            <View style={styles.starsContainer}>
+              {renderStars(newRating, 36, true)}
+            </View>
+            <Text style={styles.ratingLabel}>{newRating} out of 5</Text>
+
+            <TextInput
+              style={styles.reviewInput}
+              placeholder="Write your review (optional)"
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={4}
+              value={newReview}
+              onChangeText={setNewReview}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowRatingModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={handleSubmitRating}
+                disabled={submittingRating}
+              >
+                {submittingRating ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -483,6 +688,158 @@ const styles = StyleSheet.create({
   errorText: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  // Rating styles
+  headerRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  headerRatingText: {
+    ...typography.bodySmall,
+    color: colors.white,
+    marginLeft: spacing.sm,
+  },
+  reviewsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  rateButtonText: {
+    ...typography.bodySmall,
+    color: colors.white,
+    marginLeft: spacing.xs,
+    fontWeight: '600',
+  },
+  ratingOverview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  avgRating: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginRight: spacing.md,
+  },
+  ratingOverviewRight: {
+    flex: 1,
+  },
+  totalReviews: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  reviewItem: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  reviewerName: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  reviewText: {
+    ...typography.body,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  reviewDate: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  noReviewsText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  starsContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  ratingLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  reviewInput: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    color: colors.text,
+    ...typography.body,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: colors.background,
+    marginRight: spacing.sm,
+  },
+  cancelButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  submitButton: {
+    backgroundColor: colors.primary,
+    marginLeft: spacing.sm,
+  },
+  submitButtonText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
   },
 });
 

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import CoachCalendar from '../components/CoachCalendar';
-import { MdPeople, MdTaskAlt, MdTrendingUp, MdCheckCircle, MdWarning } from 'react-icons/md';
+import { MdPeople, MdTaskAlt, MdTrendingUp, MdCheckCircle, MdWarning, MdStar } from 'react-icons/md';
 import { useAuth } from '../contexts/AuthContext';
 import { dashboardService, DashboardData } from '../services/dashboard.service';
+import { getMyRatings, getMyRatingStats, Rating, RatingStats } from '../services/ratings.service';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -10,16 +11,32 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'ending' | 'expiring'>('all');
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [ratingStats, setRatingStats] = useState<RatingStats | null>(null);
 
   useEffect(() => {
     const userId = user?.uid || user?.id;
     if (userId) {
       loadDashboardData(userId);
+      loadRatings(userId);
     } else {
       setLoading(false);
       setError('User ID not found');
     }
   }, [user]);
+
+  const loadRatings = async (userId: string) => {
+    try {
+      const [ratingsData, statsData] = await Promise.all([
+        getMyRatings(userId),
+        getMyRatingStats(userId),
+      ]);
+      setRatings(ratingsData);
+      setRatingStats(statsData);
+    } catch (error) {
+      console.error('Error loading ratings:', error);
+    }
+  };
 
   const loadDashboardData = async (userId: string) => {
     try {
@@ -161,6 +178,53 @@ const Dashboard: React.FC = () => {
               </ul>
             ) : (
               <p className="text-secondary">No recent activity</p>
+            )}
+          </div>
+
+          {/* My Reviews Section */}
+          <div className="reviews-section glass-panel">
+            <h3><MdStar style={{ color: '#f59e0b', marginRight: '0.5rem' }} />My Reviews</h3>
+            {ratingStats && ratingStats.totalReviews > 0 ? (
+              <>
+                <div className="rating-overview">
+                  <div className="rating-big">
+                    <span className="rating-number">{ratingStats.averageRating.toFixed(1)}</span>
+                    <div className="rating-stars">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <MdStar 
+                          key={star} 
+                          style={{ color: star <= Math.round(ratingStats.averageRating) ? '#f59e0b' : '#d1d5db' }}
+                        />
+                      ))}
+                    </div>
+                    <span className="rating-count">{ratingStats.totalReviews} reviews</span>
+                  </div>
+                </div>
+                <div className="reviews-list">
+                  {ratings.slice(0, 3).map((review) => (
+                    <div key={review.id} className="review-item">
+                      <div className="review-header">
+                        <span className="reviewer-name">{review.playerName}</span>
+                        <div className="review-stars">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <MdStar 
+                              key={star} 
+                              size={14}
+                              style={{ color: star <= review.rating ? '#f59e0b' : '#d1d5db' }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {review.review && <p className="review-text">{review.review}</p>}
+                      <span className="review-date">
+                        {new Date(review.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-secondary">No reviews yet</p>
             )}
           </div>
         </div>

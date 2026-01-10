@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import { MdAdd, MdDelete, MdClose, MdCheckCircle, MdPending, MdCancel } from 'react-icons/md';
+import { MdAdd, MdDelete, MdClose, MdCheckCircle, MdPending, MdCancel, MdStar } from 'react-icons/md';
 import { coachesService } from '../services/coaches.service';
+import { ratingsService, Rating, RatingStats } from '../services/ratings.service';
 import '../styles/coaches.css';
 
 interface Coach {
@@ -18,6 +19,8 @@ interface Coach {
   profilePictureUrl?: string;
   passportPictureUrl?: string;
   createdAt: any;
+  averageRating?: number;
+  totalReviews?: number;
 }
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -28,6 +31,8 @@ const Coaches = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingCoach, setEditingCoach] = useState<Coach | null>(null);
   const [viewingCoach, setViewingCoach] = useState<Coach | null>(null);
+  const [coachReviews, setCoachReviews] = useState<Rating[]>([]);
+  const [coachRatingStats, setCoachRatingStats] = useState<RatingStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [formData, setFormData] = useState({
@@ -146,8 +151,21 @@ const Coaches = () => {
     }
   };
 
-  const handleView = (coach: Coach) => {
+  const handleView = async (coach: Coach) => {
     setViewingCoach(coach);
+    // Fetch reviews for this coach
+    try {
+      const [reviews, stats] = await Promise.all([
+        ratingsService.getAll(coach.id),
+        ratingsService.getCoachStats(coach.id),
+      ]);
+      setCoachReviews(reviews);
+      setCoachRatingStats(stats);
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+      setCoachReviews([]);
+      setCoachRatingStats(null);
+    }
   };
 
   const handleEdit = (coach: Coach) => {
@@ -389,6 +407,15 @@ const Coaches = () => {
                   <span className="label">Price Per Session:</span>
                   <span className="price-tag">${coach.pricePerSession || 'N/A'}</span>
                 </div>
+                {(coach.averageRating !== undefined && coach.averageRating > 0) && (
+                  <div className="detail-row">
+                    <span className="label">Rating:</span>
+                    <span className="rating-display">
+                      <MdStar className="star-icon" />
+                      {coach.averageRating?.toFixed(1)} ({coach.totalReviews || 0} reviews)
+                    </span>
+                  </div>
+                )}
                 <div className="detail-row">
                   <span className="label">Available Days:</span>
                   <span>{coach.availableDays.join(', ')}</span>
@@ -775,6 +802,52 @@ const Coaches = () => {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="view-section">
+                <h3>Reviews & Ratings</h3>
+                {coachRatingStats && coachRatingStats.totalReviews > 0 ? (
+                  <>
+                    <div className="rating-stats">
+                      <div className="rating-overview">
+                        <span className="avg-rating">{coachRatingStats.averageRating.toFixed(1)}</span>
+                        <div className="rating-stars">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <MdStar 
+                              key={star} 
+                              className={star <= Math.round(coachRatingStats.averageRating) ? 'star-filled' : 'star-empty'} 
+                            />
+                          ))}
+                        </div>
+                        <span className="total-reviews">{coachRatingStats.totalReviews} reviews</span>
+                      </div>
+                    </div>
+                    <div className="reviews-list">
+                      {coachReviews.slice(0, 5).map((review) => (
+                        <div key={review.id} className="review-item">
+                          <div className="review-header">
+                            <span className="reviewer-name">{review.playerName}</span>
+                            <div className="review-rating">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <MdStar 
+                                  key={star} 
+                                  className={star <= review.rating ? 'star-filled' : 'star-empty'} 
+                                  size={14}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {review.review && <p className="review-text">{review.review}</p>}
+                          <span className="review-date">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="no-reviews">No reviews yet</p>
+                )}
               </div>
 
               <div className="modal-actions">

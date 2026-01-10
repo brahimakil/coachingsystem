@@ -155,6 +155,15 @@ const CoachesView = ({ navigation }) => {
               <Ionicons name="trophy" size={14} color={colors.primary} />
               <Text style={styles.professionText}>{item.profession || 'Coach'}</Text>
             </View>
+            {/* Rating display */}
+            {item.averageRating > 0 && (
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={14} color={colors.warning} />
+                <Text style={styles.ratingText}>
+                  {item.averageRating?.toFixed(1)} ({item.totalReviews || 0})
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.priceContainer}>
             <Text style={styles.priceValue}>${item.pricePerSession || 'N/A'}</Text>
@@ -510,6 +519,17 @@ const styles = StyleSheet.create({
   professionText: {
     ...typography.caption,
     color: colors.primary,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
+  ratingText: {
+    ...typography.caption,
+    color: colors.warning,
     fontWeight: '600',
     marginLeft: 4,
   },
