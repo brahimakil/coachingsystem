@@ -15,7 +15,10 @@ export interface Task {
   submission?: {
     videos?: string[];
     notes?: string;
-    status: 'pending' | 'submitted' | 'approved' | 'rejected';
+    status: 'pending' | 'submitted' | 'approved' | 'rejected' | 'not_submitted';
+    submittedAt?: string;
+    textResponse?: string;
+    mediaUrls?: string[];
   };
   createdAt: string;
   updatedAt: string;
@@ -48,7 +51,10 @@ export interface CreateTaskDto {
   submission?: {
     videos?: string[];
     notes?: string;
-    status: 'pending' | 'submitted' | 'approved' | 'rejected';
+    status: 'pending' | 'submitted' | 'approved' | 'rejected' | 'not_submitted';
+    submittedAt?: string;
+    textResponse?: string;
+    mediaUrls?: string[];
   };
 }
 
