@@ -7,11 +7,19 @@ export class EmailService {
   private transporter;
 
   constructor(private configService: ConfigService) {
+    const user = this.configService.get<string>('EMAIL_USER');
+    const pass = this.configService.get<string>('EMAIL_PASS');
+    
+    console.log('Email Service Config:', { 
+      user: user ? 'Found' : 'Not Found', 
+      pass: pass ? 'Found' : 'Not Found' 
+    });
+
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: this.configService.get<string>('EMAIL_USER'),
-        pass: this.configService.get<string>('EMAIL_PASS'),
+        user: user,
+        pass: pass,
       },
     });
   }

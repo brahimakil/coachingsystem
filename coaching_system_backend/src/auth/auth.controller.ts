@@ -70,4 +70,22 @@ export class AuthController {
   async verifyPlayerLogin(@Body() body: { email: string; otp: string }) {
     return this.authService.verifyPlayerLogin(body.email, body.otp);
   }
+
+  @Post('player/forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async requestPasswordReset(@Body() body: { email: string }) {
+    return this.authService.requestPasswordReset(body.email);
+  }
+
+  @Post('player/verify-reset-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyPasswordResetOtp(@Body() body: { email: string; otp: string }) {
+    return this.authService.verifyPasswordResetOtp(body.email, body.otp);
+  }
+
+  @Post('player/reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() body: { email: string; resetToken: string; newPassword: string }) {
+    return this.authService.resetPassword(body.email, body.resetToken, body.newPassword);
+  }
 }

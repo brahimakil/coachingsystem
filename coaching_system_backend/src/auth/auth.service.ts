@@ -329,7 +329,7 @@ export class AuthService {
     return crypto.randomInt(100000, 999999).toString();
   }
 
-  private async storeOtp(email: string, otp: string, type: 'login' | 'register') {
+  private async storeOtp(email: string, otp: string, type: 'login' | 'register' | 'reset') {
     const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 5 * 60 * 1000); // 5 minutes
     await this.firestore.collection('otp_requests').doc(`${email}_${type}`).set({
       email,
@@ -340,7 +340,7 @@ export class AuthService {
     });
   }
 
-  private async verifyOtp(email: string, otp: string, type: 'login' | 'register'): Promise<boolean> {
+  private async verifyOtp(email: string, otp: string, type: 'login' | 'register' | 'reset'): Promise<boolean> {
     const docRef = this.firestore.collection('otp_requests').doc(`${email}_${type}`);
     const doc = await docRef.get();
 
@@ -349,7 +349,7 @@ export class AuthService {
     }
 
     const data = doc.data();
-    if (data.otp !== otp) {
+    if (!data || data.otp !== otp) {
       return false;
     }
 
@@ -443,7 +443,7 @@ export class AuthService {
       player: {
         uid: userRecord.uid,
         email: userRecord.email,
-        name: playerData.name,
+        name: playerData?.name || '',
         status: 'active',
       },
     };
@@ -468,9 +468,98 @@ export class AuthService {
       player: {
         uid: userRecord.uid,
         email: userRecord.email,
-        name: playerData.name,
-        status: playerData.status,
+        name: playerData?.name || '',
+        status: playerData?.status || 'unknown',
       },
+    };
+  }
+
+  async requestPasswordReset(email: string) {
+    try {
+      // Check if user exists
+      const userRecord = await this.firebaseApp.auth().getUserByEmail(email);
+      
+      // Check if user is a player
+      const playerDoc = await this.firestore.collection('players').doc(userRecord.uid).get();
+      if (!playerDoc.exists) {
+        throw new BadRequestException('No player account found with this email');
+      }
+
+      // Generate and store OTP
+      const otp = this.generateOtp();
+      await this.storeOtp(email, otp, 'reset');
+      
+      // Send OTP via email
+      await this.emailService.sendOtp(email, otp);
+
+      return {
+        success: true,
+        message: 'Password reset OTP sent to your email',
+        email,
+      };
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        throw new BadRequestException('No account found with this email');
+      }
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async verifyPasswordResetOtp(email: string, otp: string) {
+    const isValid = await this.verifyOtp(email, otp, 'reset');
+    if (!isValid) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Generate a temporary reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 10 * 60 * 1000); // 10 minutes
+    
+    await this.firestore.collection('password_reset_tokens').doc(email).set({
+      email,
+      token: resetToken,
+      expiresAt,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      message: 'OTP verified successfully',
+      resetToken,
+    };
+  }
+
+  async resetPassword(email: string, resetToken: string, newPassword: string) {
+    // Verify reset token
+    const tokenDoc = await this.firestore.collection('password_reset_tokens').doc(email).get();
+    
+    if (!tokenDoc.exists) {
+      throw new BadRequestException('Invalid reset request. Please request a new OTP.');
+    }
+
+    const tokenData = tokenDoc.data();
+    if (!tokenData || tokenData.token !== resetToken) {
+      throw new BadRequestException('Invalid reset token');
+    }
+
+    if (tokenData.expiresAt.toMillis() < Date.now()) {
+      await this.firestore.collection('password_reset_tokens').doc(email).delete();
+      throw new BadRequestException('Reset token has expired. Please request a new OTP.');
+    }
+
+    // Update password in Firebase Auth
+    const userRecord = await this.firebaseApp.auth().getUserByEmail(email);
+    await this.firebaseApp.auth().updateUser(userRecord.uid, {
+      password: newPassword,
+    });
+
+    // Delete the reset token
+    await this.firestore.collection('password_reset_tokens').doc(email).delete();
+
+    return {
+      success: true,
+      message: 'Password reset successfully. You can now login with your new password.',
     };
   }
 }
