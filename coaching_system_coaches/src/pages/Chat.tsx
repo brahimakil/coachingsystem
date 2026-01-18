@@ -15,6 +15,7 @@ const Chat: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showPlayersList, setShowPlayersList] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ const Chat: React.FC = () => {
     if (selectedConversation) {
       loadMessages();
       markAsRead();
+      setChatError(null); // Clear error when switching conversations
     }
   }, [selectedConversation]);
 
@@ -131,6 +133,7 @@ const Chat: React.FC = () => {
 
     try {
       setSending(true);
+      setChatError(null);
       const userId = user.uid || user.id;
       if (!userId) return;
 
@@ -144,9 +147,27 @@ const Chat: React.FC = () => {
       setMessageText('');
       await loadMessages(true);
       await loadConversations();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
-      alert('Failed to send message');
+      
+      // Handle subscription status errors
+      if (error.response?.status === 400) {
+        const errorMsg = error.response?.data?.message || '';
+        
+        if (errorMsg.includes('pending')) {
+          setChatError('This subscription is pending approval. Chat will be available once approved.');
+        } else if (errorMsg.includes('stopped') || errorMsg.includes('needs_review')) {
+          setChatError('This subscription has ended. The student needs to renew their subscription to continue chatting.');
+        } else if (errorMsg.includes('rejected')) {
+          setChatError('This subscription was rejected. Chat is not available.');
+        } else if (errorMsg.includes('active')) {
+          setChatError('Chat is only available for active subscriptions.');
+        } else {
+          setChatError(errorMsg || 'Failed to send message. Please check the subscription status.');
+        }
+      } else {
+        setChatError('Failed to send message. Please try again.');
+      }
     } finally {
       setSending(false);
     }
@@ -315,27 +336,34 @@ const Chat: React.FC = () => {
             </div>
 
             <div className="chat-input-container">
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Type a message..."
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                disabled={sending}
-              />
-              <button
-                className="send-btn"
-                onClick={handleSendMessage}
-                disabled={!messageText.trim() || sending}
-              >
-                <MdSend />
-              </button>
+              {chatError && (
+                <div className="chat-error-banner">
+                  {chatError}
+                </div>
+              )}
+              <div>
+                <input
+                  type="text"
+                  className="chat-input"
+                  placeholder="Type a message..."
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  disabled={sending}
+                />
+                <button
+                  className="send-btn"
+                  onClick={handleSendMessage}
+                  disabled={!messageText.trim() || sending}
+                >
+                  <MdSend />
+                </button>
+              </div>
             </div>
           </>
         ) : (
