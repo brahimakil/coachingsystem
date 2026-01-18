@@ -26,6 +26,17 @@ import {
 } from '../services/tasks.service';
 import '../styles/tasks.css';
 
+// Helper function to format date to local datetime-local input format
+const toLocalDateTimeString = (date: Date | string): string => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const Tasks: React.FC = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -50,8 +61,8 @@ const Tasks: React.FC = () => {
     description: '',
     subscriptionId: '',
     playerId: '',
-    startDate: new Date().toISOString().slice(0, 16),
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+    startDate: toLocalDateTimeString(new Date()),
+    dueDate: toLocalDateTimeString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
   });
 
   // Get selected subscription for date constraints
@@ -176,8 +187,8 @@ const Tasks: React.FC = () => {
         description: '',
         subscriptionId: '',
         playerId: '',
-        startDate: new Date().toISOString().slice(0, 16),
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+        startDate: toLocalDateTimeString(new Date()),
+        dueDate: toLocalDateTimeString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
       });
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to assign task';
@@ -483,15 +494,13 @@ const Tasks: React.FC = () => {
                       type="datetime-local" 
                       className="form-input"
                       required
-                      min={selectedSubscription && selectedSubscription.startDate ? new Date(selectedSubscription.startDate).toISOString().slice(0, 16) : undefined}
-                      max={selectedSubscription && selectedSubscription.endDate ? new Date(selectedSubscription.endDate).toISOString().slice(0, 16) : undefined}
                       value={newTask.startDate}
                       onChange={e => {
                         setNewTask({...newTask, startDate: e.target.value});
                         setConflictError('');
                       }}
                     />
-                    {selectedSubscription && selectedSubscription.startDate && selectedSubscription.endDate && (
+                    {selectedSubscription?.startDate && selectedSubscription?.endDate && (
                       <p className="form-hint">
                         Subscription period: {new Date(selectedSubscription.startDate).toLocaleDateString()} - {new Date(selectedSubscription.endDate).toLocaleDateString()}
                       </p>
@@ -505,8 +514,7 @@ const Tasks: React.FC = () => {
                       type="datetime-local" 
                       className="form-input"
                       required
-                      min={selectedSubscription && selectedSubscription.startDate ? new Date(selectedSubscription.startDate).toISOString().slice(0, 16) : undefined}
-                      max={selectedSubscription && selectedSubscription.endDate ? new Date(selectedSubscription.endDate).toISOString().slice(0, 16) : undefined}
+                      min={newTask.startDate}
                       value={newTask.dueDate}
                       onChange={e => {
                         setNewTask({...newTask, dueDate: e.target.value});
