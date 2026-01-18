@@ -280,10 +280,14 @@ export class ChatService {
         throw new NotFoundException('Conversation not found');
       }
 
-      // Check if conversation is closed
+      // Check if conversation is closed - if so, reopen it
       const conversationData = conversationDoc.data();
       if (conversationData?.status === 'closed') {
-        throw new BadRequestException('Cannot send message. This conversation is closed because the subscription has ended.');
+        console.log('Reopening closed conversation:', conversationId);
+        await conversationRef.update({
+          status: 'active',
+          updatedAt: new Date().toISOString(),
+        });
       }
 
       const messageData: any = {
