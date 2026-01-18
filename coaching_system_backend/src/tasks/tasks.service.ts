@@ -41,6 +41,8 @@ export class TasksService {
     // Get subscription date range
     const subscriptionStart = new Date(subscriptionData.startDate);
     const subscriptionEnd = new Date(subscriptionData.endDate);
+    // Set subscription end to end of day (23:59:59.999) to allow tasks on the last day
+    subscriptionEnd.setHours(23, 59, 59, 999);
     
     // Parse task dates
     const taskStartDate = new Date(createTaskDto.startDate);
@@ -55,14 +57,14 @@ export class TasksService {
 
     if (taskStartDate > subscriptionEnd) {
       throw new BadRequestException(
-        `Task start date (${createTaskDto.startDate}) must be on or before the subscription end date (${subscriptionData.endDate})`
+        `Task start date must be within the subscription period (ends ${new Date(subscriptionData.endDate).toLocaleDateString()})`
       );
     }
 
     // Validate task due date is within subscription period
     if (taskDueDate > subscriptionEnd) {
       throw new BadRequestException(
-        `Task due date (${createTaskDto.dueDate}) must be on or before the subscription end date (${subscriptionData.endDate})`
+        `Task due date must be within the subscription period (ends ${new Date(subscriptionData.endDate).toLocaleDateString()})`
       );
     }
 
