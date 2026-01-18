@@ -280,14 +280,24 @@ export class ChatService {
         throw new NotFoundException('Conversation not found');
       }
 
-      // Check if conversation is closed - if so, reopen it
       const conversationData = conversationDoc.data();
-      if (conversationData?.status === 'closed') {
-        console.log('Reopening closed conversation:', conversationId);
-        await conversationRef.update({
-          status: 'active',
-          updatedAt: new Date().toISOString(),
-        });
+      
+      // Check subscription status before allowing messaging
+      const subscription = await this.firestore
+        .collection('subscriptions')
+        .where('coachId', '==', conversationData.coachId)
+        .where('playerId', '==', conversationData.playerId)
+        .limit(1)
+        .get();
+
+      if (subscription.empty) {
+        throw new BadRequestException('No subscription found between coach and player');
+      }
+
+      const subscriptionData = subscription.docs[0].data();
+      
+      if (subscriptionData.status !== 'active') {
+        throw new BadRequestException(`Cannot send message. Subscription status is ${subscriptionData.status}. Only active subscriptions can chat.`);
       }
 
       const messageData: any = {
