@@ -281,6 +281,10 @@ export class ChatService {
       }
 
       const conversationData = conversationDoc.data();
+
+      if (!conversationData) {
+        throw new NotFoundException('Conversation data not available');
+      }
       
       // Check subscription status before allowing messaging
       const subscription = await this.firestore
